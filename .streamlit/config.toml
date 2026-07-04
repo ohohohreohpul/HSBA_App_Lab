@@ -1,0 +1,9 @@
+# Lock the dashboard to a light theme so custom styling (styles.py) renders
+# consistently for every viewer, regardless of their OS/browser dark mode.
+[theme]
+base = "light"
+primaryColor = "#4f46e5"
+backgroundColor = "#fbfbfe"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1e293b"
+font = "sans serif"
