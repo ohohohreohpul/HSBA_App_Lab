@@ -6,15 +6,39 @@ A Streamlit dashboard that helps a procurement team **evaluate and compare suppl
 across four criteria (delivery time, quality, price, communication), compute an
 overall score, and flag underperformers.
 
+## Architecture
+
+This is a **single Streamlit app** — there is no separate backend/API server.
+Streamlit runs `app.py` as one process that both computes the data (backend
+logic: loading CSVs, aggregating scores) and renders the UI (frontend: the
+page you see in the browser). Starting it starts both at once.
+
 ## Run it
 
-```bash
-pip install -r requirements.txt
-python3 -m streamlit run app.py
-```
+1. **Install dependencies** (one-time setup):
 
-Runs locally or in GitHub Codespaces. The app opens in your browser at
-`http://localhost:8501`.
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Start the app** (this launches the "backend" logic and the "frontend" UI together):
+
+   ```bash
+   python -m streamlit run app.py
+   ```
+
+   On macOS/Linux you can also use `python3` instead of `python`.
+
+3. Streamlit prints a local URL, and should open it automatically. If not,
+   open it yourself:
+
+   ```
+   http://localhost:8501
+   ```
+
+4. To stop the app, go back to the terminal and press `Ctrl+C`.
+
+Runs locally or in GitHub Codespaces.
 
 ## Regenerate the sample data (optional)
 

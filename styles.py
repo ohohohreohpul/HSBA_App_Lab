@@ -22,8 +22,6 @@ html, body, [class*="css"] {
 :root {
     --accent: #4f46e5;          /* indigo */
     --accent-soft: #eef2ff;
-    --good: #10b981;
-    --bad: #ef4444;
     --ink: #1e293b;
 }
 
@@ -161,36 +159,36 @@ footer { visibility: hidden; }
 """
 
 
-# Animated logo shown in the top-right of the header.
-_LOGO_URL = (
-    "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3U5MGR5bnVseTI3dHZvbjBwc24yd3B"
-    "pa2g2YmFxaDZrdjR5Y3RjaSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/EiX5p2iF1I9b8XecZ3/giphy.gif"
-)
-
-_HEADER_HTML = f"""
+# Simple mark shown to the left of the header, styled to match the accent palette.
+_HEADER_HTML = """
 <div class="app-header">
-    <img class="app-logo" src="{_LOGO_URL}" alt="logo" />
+    <div class="app-logo">📊</div>
     <h1>Supplier Evaluation Dashboard</h1>
 </div>
 <style>
-.app-header {{
+.app-header {
     display: flex;
     align-items: center;
     justify-content: flex-start;
     gap: 1rem;
     animation: slideDown 0.6s ease both;
-}}
-.app-header h1 {{ margin: 0; animation: none; }}   /* header handles the entrance */
-.app-logo {{
-    height: 64px;
-    width: auto;
-    border-radius: 12px;
-    box-shadow: 0 4px 14px rgba(79,70,229,0.18);
+}
+.app-header h1 { margin: 0; animation: none; }   /* header handles the entrance */
+.app-logo {
+    height: 56px;
+    width: 56px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.7rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    box-shadow: 0 4px 14px rgba(79,70,229,0.25);
     transition: transform 0.25s ease;
-}}
-.app-logo:hover {{ transform: scale(1.06) rotate(-2deg); }}
-@media (max-width: 640px) {{ .app-logo {{ height: 46px; }} }}
+}
+.app-logo:hover { transform: scale(1.06) rotate(-2deg); }
+@media (max-width: 640px) { .app-logo { height: 44px; width: 44px; font-size: 1.3rem; } }
 </style>
 """
 
