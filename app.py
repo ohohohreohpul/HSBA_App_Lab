@@ -217,8 +217,15 @@ else:
 
 # List of flagged suppliers for quick scanning.
 if n_under:
-    flagged = ", ".join(view.loc[view["underperformer"], "supplier_name"])
-    st.error(f"⚠️ {n_under} underperforming supplier(s) below {threshold:.1f}: {flagged}")
+    st.error(f"⚠️ {n_under} underperforming supplier(s) below {threshold:.1f}")
+    with st.expander("Show more"):
+        flagged = (
+            view.loc[view["underperformer"], ["supplier_name", "overall_score"]]
+            .sort_values("overall_score", ascending=True)
+            .reset_index(drop=True)
+        )
+        for _, r in flagged.iterrows():
+            st.write(f"**{r['supplier_name']}** — {r['overall_score']:.2f}")
 else:
     st.success("✅ No underperformers under the current threshold.")
 
