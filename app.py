@@ -259,6 +259,12 @@ else:
     )
 # For a top-to-bottom visual order, Altair draws the first row at the top, so
 # the list is already in the order the user picked.
+# Every supplier gets a fixed-height row, so the chart's total height grows
+# with the number of suppliers. It's placed inside a Streamlit scrollable
+# container capped to ~10 rows tall, so only the top 10 show right away and
+# the rest are reachable by scrolling within the chart.
+ROW_HEIGHT = 32
+VISIBLE_ROWS = 10
 rank_chart = (
     alt.Chart(ranked)
     .mark_bar(color="#4f46e5", cornerRadiusEnd=4)
@@ -270,8 +276,10 @@ rank_chart = (
             alt.Tooltip("overall_score:Q", title="Overall score", format=".2f"),
         ],
     )
+    .properties(height=max(len(ranked), 1) * ROW_HEIGHT)
 )
-st.altair_chart(rank_chart, use_container_width=True)
+chart_box = st.container(height=VISIBLE_ROWS * ROW_HEIGHT + 40, border=True)
+chart_box.altair_chart(rank_chart, use_container_width=True)
 
 st.divider()
 
