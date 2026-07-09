@@ -293,9 +293,24 @@ st.divider()
 # Drill-down (required)
 # --------------------------------------------------------------------------- #
 st.subheader("Supplier drill-down")
-selected_supplier = st.selectbox(
-    "Choose a supplier to inspect", view["supplier_name"].tolist()
-)
+
+search_col, select_col = st.columns(2)
+with search_col:
+    search_term = st.text_input(
+        "Search suppliers", placeholder="Type a supplier name to filter…"
+    )
+drilldown_options = view["supplier_name"].tolist()
+if search_term:
+    drilldown_options = [
+        name for name in drilldown_options if search_term.lower() in name.lower()
+    ]
+
+if not drilldown_options:
+    st.warning(f"No suppliers match “{search_term}”.")
+    st.stop()
+
+with select_col:
+    selected_supplier = st.selectbox("Choose a supplier to inspect", drilldown_options)
 
 row = view[view["supplier_name"] == selected_supplier].iloc[0]
 sup_id = int(row["supplier_id"])
