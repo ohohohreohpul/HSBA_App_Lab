@@ -129,6 +129,39 @@ hr { margin: 1.6rem 0; opacity: 0.5; }
     animation: fadeInUp 0.6s ease both;
 }
 
+/* ---- Chart toolbar (fullscreen button): keep it visible & readable --- */
+[data-testid="stElementToolbar"] {
+    opacity: 1 !important;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(16,24,40,0.12);
+    /* Default position sits right at the top edge, above the chart, where
+       it gets clipped by the scrollable chart box. Push it down into the
+       visible area instead. */
+    top: 44px !important;
+    right: 12px !important;
+}
+[data-testid="stElementToolbar"] button svg {
+    color: var(--accent) !important;
+    fill: var(--accent) !important;
+}
+
+/* Scrollable containers (e.g. the ranking chart box) clip their content,
+   which also clips the fullscreen chart overlay since it renders inside
+   the same box. Let overflow escape whenever something inside is
+   fullscreened so the expanded chart isn't cut off. */
+[data-testid="stVerticalBlockBorderWrapper"]:has(.stFullScreenFrame) {
+    overflow: visible !important;
+}
+[data-testid="stVerticalBlock"]:has(.stFullScreenFrame) {
+    overflow: visible !important;
+}
+.stFullScreenFrame {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+}
+
 /* ---- Buttons --------------------------------------------------------- */
 .stButton > button {
     border-radius: 10px;

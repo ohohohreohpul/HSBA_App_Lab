@@ -265,18 +265,24 @@ else:
 # the rest are reachable by scrolling within the chart.
 ROW_HEIGHT = 32
 VISIBLE_ROWS = 10
+bars = alt.Chart(ranked).mark_bar(color="#4f46e5", cornerRadiusEnd=4).encode(
+    x=alt.X("overall_score:Q", title="Overall score", scale=alt.Scale(domain=[0, 5])),
+    y=alt.Y("supplier_name:N", sort=ranked["supplier_name"].tolist(), title="Supplier"),
+    tooltip=[
+        alt.Tooltip("supplier_name:N", title="Supplier"),
+        alt.Tooltip("overall_score:Q", title="Overall score", format=".2f"),
+    ],
+)
+# Score labels at the end of each bar.
+labels = alt.Chart(ranked).mark_text(align="left", dx=5, color="#1e293b", fontWeight=600).encode(
+    x=alt.X("overall_score:Q"),
+    y=alt.Y("supplier_name:N", sort=ranked["supplier_name"].tolist()),
+    text=alt.Text("overall_score:Q", format=".2f"),
+)
 rank_chart = (
-    alt.Chart(ranked)
-    .mark_bar(color="#4f46e5", cornerRadiusEnd=4)
-    .encode(
-        x=alt.X("overall_score:Q", title="Overall score"),
-        y=alt.Y("supplier_name:N", sort=ranked["supplier_name"].tolist(), title="Supplier"),
-        tooltip=[
-            alt.Tooltip("supplier_name:N", title="Supplier"),
-            alt.Tooltip("overall_score:Q", title="Overall score", format=".2f"),
-        ],
-    )
+    (bars + labels)
     .properties(height=max(len(ranked), 1) * ROW_HEIGHT)
+    .configure_view(strokeWidth=0)
 )
 chart_box = st.container(height=VISIBLE_ROWS * ROW_HEIGHT + 40, border=True)
 chart_box.altair_chart(rank_chart, use_container_width=True)
