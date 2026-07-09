@@ -62,7 +62,7 @@ supplier_defs = [
 # The 17 curated suppliers above are kept as-is; the rest are synthesized by
 # combining name fragments with a country and a random quality bias.
 # --------------------------------------------------------------------------- #
-TARGET_SUPPLIERS = 100
+TARGET_SUPPLIERS = 150  # must be >= 5 * number of countries in country_pool
 
 # Category-appropriate name parts: prefix words + suffix/entity words.
 name_parts = {
@@ -104,19 +104,39 @@ for i, (name, country, cat, bias) in enumerate(supplier_defs, start=1):
     suppliers.append((i, name, country, cat, contact, bias))
     used_names.add(name)
 
-next_id = len(supplier_defs) + 1
-while next_id <= TARGET_SUPPLIERS:
+def make_supplier(next_id, country, entity):
     cat = random.randint(1, len(categories))
     prefixes, suffixes = name_parts[cat]
-    country, entity = random.choice(country_pool)
-    name = f"{random.choice(prefixes)}{random.choice(suffixes)} {entity}"
-    if name in used_names:
-        continue
+    while True:
+        name = f"{random.choice(prefixes)}{random.choice(suffixes)} {entity}"
+        if name not in used_names:
+            break
     used_names.add(name)
     bias = round(random.uniform(-1.2, 1.1), 2)
     slug = "".join(c for c in name.lower().split()[0] if c.isalnum())
     contact = f"contact@{slug}.example"
-    suppliers.append((next_id, name, country, cat, contact, bias))
+    return (next_id, name, country, cat, contact, bias)
+
+
+next_id = len(supplier_defs) + 1
+
+# Guarantee at least MIN_PER_COUNTRY suppliers for every country in the pool
+# (including the curated ones above), before topping up to TARGET_SUPPLIERS.
+MIN_PER_COUNTRY = 5
+country_counts = {}
+for s in suppliers:
+    country_counts[s[2]] = country_counts.get(s[2], 0) + 1
+
+for country, entity in country_pool:
+    while country_counts.get(country, 0) < MIN_PER_COUNTRY and next_id <= TARGET_SUPPLIERS:
+        suppliers.append(make_supplier(next_id, country, entity))
+        country_counts[country] = country_counts.get(country, 0) + 1
+        next_id += 1
+
+while next_id <= TARGET_SUPPLIERS:
+    country, entity = random.choice(country_pool)
+    suppliers.append(make_supplier(next_id, country, entity))
+    country_counts[country] = country_counts.get(country, 0) + 1
     next_id += 1
 
 # --------------------------------------------------------------------------- #

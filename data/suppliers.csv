@@ -16,86 +16,136 @@ supplier_id,supplier_name,country,category_id,contact_email
 15,Precision Machinery KK,Japan,6,contact@precision.example
 16,HeavyDuty Werke GmbH,Germany,6,contact@heavyduty.example
 17,Bharat Tooling Pvt Ltd,India,6,contact@bharat.example
-18,PrecisionIndustries AG,Switzerland,6,contact@precisionindustries.example
-19,CobaltMetals S.L.,Spain,2,contact@cobaltmetals.example
-20,SupplyBureau Ltd,China,5,contact@supplybureau.example
-21,CircuitDevices BV,Netherlands,1,contact@circuitdevices.example
-22,FolioTrading BV,Netherlands,5,contact@foliotrading.example
-23,FreightTransport Srl,Italy,4,contact@freighttransport.example
-24,LumenComponents Ltda,Brazil,1,contact@lumencomponents.example
-25,SecurePack Ltd,United Kingdom,3,contact@securepack.example
-26,FlexContainers AG,Switzerland,3,contact@flexcontainers.example
-27,WrapPackaging Lda,Portugal,3,contact@wrappackaging.example
-28,NoteSupplies AG,Switzerland,5,contact@notesupplies.example
-29,PowerEngineering Lda,Portugal,6,contact@powerengineering.example
-30,PrecisionIndustries Ltd,China,6,contact@precisionindustries.example
-31,GuardPack Ltd,China,3,contact@guardpack.example
-32,FreightDistribution Ltd,United Kingdom,4,contact@freightdistribution.example
-33,GraniteMaterials SARL,France,2,contact@granitematerials.example
-34,MechaMachinery Ltd,Ireland,6,contact@mechamachinery.example
-35,CobaltMaterials A/S,Denmark,2,contact@cobaltmaterials.example
-36,OceanDistribution Ltd,United Kingdom,4,contact@oceandistribution.example
-37,PowerMachinery Oy,Finland,6,contact@powermachinery.example
-38,QuantumSemiconductors A.S.,Turkey,1,contact@quantumsemiconductors.example
-39,CobaltChemicals AS,Norway,2,contact@cobaltchemicals.example
-40,OceanShipping Sp. z o.o.,Poland,4,contact@oceanshipping.example
-41,CobaltResources Srl,Italy,2,contact@cobaltresources.example
-42,HydraEquipment AS,Norway,6,contact@hydraequipment.example
-43,ElementAlloys S.L.,Spain,2,contact@elementalloys.example
-44,MicroComponents Pty Ltd,Australia,1,contact@microcomponents.example
-45,DriveMachinery KK,Japan,6,contact@drivemachinery.example
-46,StationeryStationery Pvt Ltd,India,5,contact@stationerystationery.example
-47,IonElectronics Ltd,Ireland,1,contact@ionelectronics.example
-48,ClipTrading Ltda,Brazil,5,contact@cliptrading.example
-49,SecureContainers KK,Japan,3,contact@securecontainers.example
-50,AxisEquipment S.A.,Mexico,6,contact@axisequipment.example
-51,PenTrading AG,Switzerland,5,contact@pentrading.example
-52,DriveWerke NV,Belgium,6,contact@drivewerke.example
-53,ZincResources A/S,Denmark,2,contact@zincresources.example
-54,PrintSupplies Oy,Finland,5,contact@printsupplies.example
-55,LayerWrapping Inc,Canada,3,contact@layerwrapping.example
-56,IronMetals AS,Norway,2,contact@ironmetals.example
-57,ByteComponents Ltda,Brazil,1,contact@bytecomponents.example
-58,RapidFreight A/S,Denmark,4,contact@rapidfreight.example
-59,InkProducts KK,Japan,5,contact@inkproducts.example
-60,IndustriaEngineering BV,Netherlands,6,contact@industriaengineering.example
-61,TorqueTooling s.r.o.,Czechia,6,contact@torquetooling.example
-62,PrimeCargo AG,Switzerland,4,contact@primecargo.example
-63,ByteComponents AS,Norway,1,contact@bytecomponents.example
-64,IonTechnik Ltd,China,1,contact@iontechnik.example
-65,VectorSystems AB,Sweden,1,contact@vectorsystems.example
-66,MineralAlloys Ltd,United Kingdom,2,contact@mineralalloys.example
-67,CoreResources S.A.,Mexico,2,contact@coreresources.example
-68,RouteCargo A.S.,Turkey,4,contact@routecargo.example
-69,TorqueTooling KK,Japan,6,contact@torquetooling.example
-70,MechaIndustries AB,Sweden,6,contact@mechaindustries.example
-71,AmpereTechnik AB,Sweden,1,contact@amperetechnik.example
-72,CircuitComponents Srl,Italy,1,contact@circuitcomponents.example
-73,TerraChemicals KK,Japan,2,contact@terrachemicals.example
-74,LumenDevices Pvt Ltd,India,1,contact@lumendevices.example
-75,PowerMachinery A/S,Denmark,6,contact@powermachinery.example
-76,AlloyAlloys Inc,USA,2,contact@alloyalloys.example
-77,RapidShipping AB,Sweden,4,contact@rapidshipping.example
-78,FleetShipping Ltd,United Kingdom,4,contact@fleetshipping.example
-79,MotionEquipment S.A.,Mexico,6,contact@motionequipment.example
-80,PrimeFreight S.L.,Spain,4,contact@primefreight.example
-81,IonDevices AS,Norway,1,contact@iondevices.example
-82,EcoSolutions AB,Sweden,3,contact@ecosolutions.example
-83,PaperProducts Inc,USA,5,contact@paperproducts.example
-84,CoreMetals Ltd,China,2,contact@coremetals.example
-85,IronResources Sp. z o.o.,Poland,2,contact@ironresources.example
-86,SupplySupplies AB,Sweden,5,contact@supplysupplies.example
-87,StationeryStationery AS,Norway,5,contact@stationerystationery.example
-88,CobaltChemicals Ltd,Ireland,2,contact@cobaltchemicals.example
-89,OceanDistribution S.L.,Spain,4,contact@oceandistribution.example
-90,FlexPackaging Ltda,Brazil,3,contact@flexpackaging.example
-91,OfficeProducts AG,Switzerland,5,contact@officeproducts.example
-92,BoxPackaging S.L.,Spain,3,contact@boxpackaging.example
-93,SecureContainers Co,Singapore,3,contact@securecontainers.example
-94,DriveIndustries Co,Singapore,6,contact@driveindustries.example
-95,BoltEngineering Inc,Canada,6,contact@boltengineering.example
-96,PhotonElectronics S.L.,Spain,1,contact@photonelectronics.example
-97,TurboEngineering A/S,Denmark,6,contact@turboengineering.example
-98,GraniteMaterials Co,South Korea,2,contact@granitematerials.example
-99,PalletWrapping NV,Belgium,3,contact@palletwrapping.example
-100,PulseSemiconductors Ltd,China,1,contact@pulsesemiconductors.example
+18,HeavyMachinery GmbH,Germany,6,contact@heavymachinery.example
+19,CopperMaterials GmbH,Germany,2,contact@coppermaterials.example
+20,IndustriaEquipment AB,Sweden,6,contact@industriaequipment.example
+21,SwiftLogistics AB,Sweden,4,contact@swiftlogistics.example
+22,ElementResources AB,Sweden,2,contact@elementresources.example
+23,CobaltIndustries AB,Sweden,2,contact@cobaltindustries.example
+24,PrimeShipping Ltd,China,4,contact@primeshipping.example
+25,LumenComponents Ltd,China,1,contact@lumencomponents.example
+26,WrapPack Ltd,China,3,contact@wrappack.example
+27,FlexPackaging Ltd,China,3,contact@flexpackaging.example
+28,GuardWrapping AG,Switzerland,3,contact@guardwrapping.example
+29,IonSemiconductors AG,Switzerland,1,contact@ionsemiconductors.example
+30,GlobalTransport AG,Switzerland,4,contact@globaltransport.example
+31,DriveEngineering AG,Switzerland,6,contact@driveengineering.example
+32,HeavyMachinery S.L.,Spain,6,contact@heavymachinery.example
+33,FlexPack S.L.,Spain,3,contact@flexpack.example
+34,TransShipping S.L.,Spain,4,contact@transshipping.example
+35,SecureWrapping S.L.,Spain,3,contact@securewrapping.example
+36,AxisIndustries Inc,USA,6,contact@axisindustries.example
+37,HeavyEquipment Inc,USA,6,contact@heavyequipment.example
+38,FolioOffice Inc,USA,5,contact@foliooffice.example
+39,TransDistribution Inc,USA,4,contact@transdistribution.example
+40,MineralChemicals BV,Netherlands,2,contact@mineralchemicals.example
+41,CircuitElectronics BV,Netherlands,1,contact@circuitelectronics.example
+42,TransLogistics BV,Netherlands,4,contact@translogistics.example
+43,FolioStationery BV,Netherlands,5,contact@foliostationery.example
+44,RouteDistribution Srl,Italy,4,contact@routedistribution.example
+45,SecurePack Srl,Italy,3,contact@securepack.example
+46,ClipTrading Srl,Italy,5,contact@cliptrading.example
+47,NoteStationery Srl,Italy,5,contact@notestationery.example
+48,ElementAlloys Ltd,United Kingdom,2,contact@elementalloys.example
+49,VectorElectronics Ltd,United Kingdom,1,contact@vectorelectronics.example
+50,ZincIndustries Ltd,United Kingdom,2,contact@zincindustries.example
+51,AmpereSemiconductors Ltd,United Kingdom,1,contact@amperesemiconductors.example
+52,ExpressFreight Co,Singapore,4,contact@expressfreight.example
+53,PulseTechnik Co,Singapore,1,contact@pulsetechnik.example
+54,QuillStationery Co,Singapore,5,contact@quillstationery.example
+55,FlexWrapping Co,Singapore,3,contact@flexwrapping.example
+56,SwiftDistribution Oy,Finland,4,contact@swiftdistribution.example
+57,CushionPack Oy,Finland,3,contact@cushionpack.example
+58,VectorTechnik Oy,Finland,1,contact@vectortechnik.example
+59,BoltEquipment Oy,Finland,6,contact@boltequipment.example
+60,LayerPack SARL,France,3,contact@layerpack.example
+61,PaperProducts SARL,France,5,contact@paperproducts.example
+62,MicroSystems SARL,France,1,contact@microsystems.example
+63,FreshPackaging SARL,France,3,contact@freshpackaging.example
+64,OfficeSupplies Sp. z o.o.,Poland,5,contact@officesupplies.example
+65,LumenDevices Sp. z o.o.,Poland,1,contact@lumendevices.example
+66,MineralAlloys Sp. z o.o.,Poland,2,contact@mineralalloys.example
+67,BasaltResources Sp. z o.o.,Poland,2,contact@basaltresources.example
+68,PrimeTransport KK,Japan,4,contact@primetransport.example
+69,GearIndustries KK,Japan,6,contact@gearindustries.example
+70,MechaEngineering KK,Japan,6,contact@mechaengineering.example
+71,PrintSupplies KK,Japan,5,contact@printsupplies.example
+72,QuantumElectronics Pvt Ltd,India,1,contact@quantumelectronics.example
+73,CoreMaterials Pvt Ltd,India,2,contact@corematerials.example
+74,MechaMachinery Pvt Ltd,India,6,contact@mechamachinery.example
+75,VectorSystems Pvt Ltd,India,1,contact@vectorsystems.example
+76,BasaltIndustries GmbH,Austria,2,contact@basaltindustries.example
+77,BureauTrading GmbH,Austria,5,contact@bureautrading.example
+78,SupplyBureau GmbH,Austria,5,contact@supplybureau.example
+79,FleetShipping GmbH,Austria,4,contact@fleetshipping.example
+80,PulseSemiconductors GmbH,Austria,1,contact@pulsesemiconductors.example
+81,FreightDistribution NV,Belgium,4,contact@freightdistribution.example
+82,MechaMachinery NV,Belgium,6,contact@mechamachinery.example
+83,TorqueMachinery NV,Belgium,6,contact@torquemachinery.example
+84,ElementAlloys NV,Belgium,2,contact@elementalloys.example
+85,BasaltAlloys NV,Belgium,2,contact@basaltalloys.example
+86,SiliconDevices A/S,Denmark,1,contact@silicondevices.example
+87,BoltMachinery A/S,Denmark,6,contact@boltmachinery.example
+88,TerraAlloys A/S,Denmark,2,contact@terraalloys.example
+89,CarbonAlloys A/S,Denmark,2,contact@carbonalloys.example
+90,AlloyMetals A/S,Denmark,2,contact@alloymetals.example
+91,LayerContainers AS,Norway,3,contact@layercontainers.example
+92,IndustriaEquipment AS,Norway,6,contact@industriaequipment.example
+93,RapidCargo AS,Norway,4,contact@rapidcargo.example
+94,FusionTechnik AS,Norway,1,contact@fusiontechnik.example
+95,TorqueMachinery AS,Norway,6,contact@torquemachinery.example
+96,ExpressTransport Lda,Portugal,4,contact@expresstransport.example
+97,OfficeOffice Lda,Portugal,5,contact@officeoffice.example
+98,PulseComponents Lda,Portugal,1,contact@pulsecomponents.example
+99,InkProducts Lda,Portugal,5,contact@inkproducts.example
+100,OfficeBureau Lda,Portugal,5,contact@officebureau.example
+101,StationeryStationery s.r.o.,Czechia,5,contact@stationerystationery.example
+102,MineralIndustries s.r.o.,Czechia,2,contact@mineralindustries.example
+103,ShieldPack s.r.o.,Czechia,3,contact@shieldpack.example
+104,PalletWrapping s.r.o.,Czechia,3,contact@palletwrapping.example
+105,NovaSemiconductors s.r.o.,Czechia,1,contact@novasemiconductors.example
+106,OfficeSupplies Ltd,Ireland,5,contact@officesupplies.example
+107,ClipOffice Ltd,Ireland,5,contact@clipoffice.example
+108,CircuitSystems Ltd,Ireland,1,contact@circuitsystems.example
+109,LinkTransport Ltd,Ireland,4,contact@linktransport.example
+110,QuillTrading Ltd,Ireland,5,contact@quilltrading.example
+111,PowerEquipment Co,South Korea,6,contact@powerequipment.example
+112,HeavyWerke Co,South Korea,6,contact@heavywerke.example
+113,IonDevices Co,South Korea,1,contact@iondevices.example
+114,SealPack Co,South Korea,3,contact@sealpack.example
+115,MineralIndustries Co,South Korea,2,contact@mineralindustries.example
+116,PrintStationery S.A.,Mexico,5,contact@printstationery.example
+117,MicroTechnik S.A.,Mexico,1,contact@microtechnik.example
+118,EcoPackaging S.A.,Mexico,3,contact@ecopackaging.example
+119,MineralChemicals S.A.,Mexico,2,contact@mineralchemicals.example
+120,ExpressDistribution S.A.,Mexico,4,contact@expressdistribution.example
+121,MicroElectronics Ltda,Brazil,1,contact@microelectronics.example
+122,TurboEquipment Ltda,Brazil,6,contact@turboequipment.example
+123,SealSolutions Ltda,Brazil,3,contact@sealsolutions.example
+124,TitanChemicals Ltda,Brazil,2,contact@titanchemicals.example
+125,QuantumComponents Ltda,Brazil,1,contact@quantumcomponents.example
+126,HeavyEngineering A.S.,Turkey,6,contact@heavyengineering.example
+127,ContinentalDistribution A.S.,Turkey,4,contact@continentaldistribution.example
+128,CarbonMaterials A.S.,Turkey,2,contact@carbonmaterials.example
+129,AlloyMetals A.S.,Turkey,2,contact@alloymetals.example
+130,LayerContainers A.S.,Turkey,3,contact@layercontainers.example
+131,MotionWerke Inc,Canada,6,contact@motionwerke.example
+132,HeavyTooling Inc,Canada,6,contact@heavytooling.example
+133,PrimeCargo Inc,Canada,4,contact@primecargo.example
+134,CargoFreight Inc,Canada,4,contact@cargofreight.example
+135,CopperMetals Inc,Canada,2,contact@coppermetals.example
+136,CargoFreight Pty Ltd,Australia,4,contact@cargofreight.example
+137,BoxSupplies Pty Ltd,Australia,3,contact@boxsupplies.example
+138,PowerEquipment Pty Ltd,Australia,6,contact@powerequipment.example
+139,MicroSystems Pty Ltd,Australia,1,contact@microsystems.example
+140,EcoPackaging Pty Ltd,Australia,3,contact@ecopackaging.example
+141,MotionEngineering SARL,France,6,contact@motionengineering.example
+142,AmpereDevices NV,Belgium,1,contact@amperedevices.example
+143,HydraMachinery AB,Sweden,6,contact@hydramachinery.example
+144,ClerkTrading A.S.,Turkey,5,contact@clerktrading.example
+145,GearEngineering S.A.,Mexico,6,contact@gearengineering.example
+146,SealWrapping Ltd,Ireland,3,contact@sealwrapping.example
+147,AxisEquipment AG,Switzerland,6,contact@axisequipment.example
+148,ShieldSupplies KK,Japan,3,contact@shieldsupplies.example
+149,AlloyIndustries S.L.,Spain,2,contact@alloyindustries.example
+150,TurboEquipment Ltd,Ireland,6,contact@turboequipment.example
