@@ -61,7 +61,9 @@ inject_styles()
 # --------------------------------------------------------------------------- #
 @st.cache_data
 def load_data():
-    """Load the four CSV tables. Cached so files are read only once per session."""
+    """Load the four CSV tables. Cached for the lifetime of the running
+    Streamlit process, so the CSVs are only read once when the app starts —
+    restart the app to pick up changes made to the data files."""
     categories = pd.read_csv(DATA_DIR / "categories.csv")
     suppliers = pd.read_csv(DATA_DIR / "suppliers.csv")
     orders = pd.read_csv(DATA_DIR / "orders.csv")
@@ -285,7 +287,12 @@ else:
     VISIBLE_ROWS = 10
     bars = alt.Chart(ranked).mark_bar(color="#4f46e5", cornerRadiusEnd=4).encode(
         x=alt.X("overall_score:Q", title="Overall score", scale=alt.Scale(domain=[0, 5])),
-        y=alt.Y("supplier_name:N", sort=ranked["supplier_name"].tolist(), title="Supplier"),
+        y=alt.Y(
+            "supplier_name:N",
+            sort=ranked["supplier_name"].tolist(),
+            title="Supplier",
+            axis=alt.Axis(labelLimit=260, labelOverlap=False),
+        ),
         tooltip=[
             alt.Tooltip("supplier_name:N", title="Supplier"),
             alt.Tooltip("overall_score:Q", title="Overall score", format=".2f"),
@@ -299,8 +306,9 @@ else:
     )
     rank_chart = (
         (bars + labels)
-        .properties(height=max(len(ranked), 1) * ROW_HEIGHT)
+        .properties(height=max(len(ranked), 1) * ROW_HEIGHT, autosize={"type": "fit-x", "contains": "padding"})
         .configure_view(strokeWidth=0)
+        .configure_axisY(labelPadding=10)
     )
     chart_box = st.container(height=VISIBLE_ROWS * ROW_HEIGHT + 40, border=True)
     chart_box.altair_chart(rank_chart, use_container_width=True)
