@@ -235,57 +235,71 @@ st.divider()
 # Bar chart ranking (required)
 # --------------------------------------------------------------------------- #
 st.subheader("Ranking by overall score")
-sort_order = st.radio(
-    "Sort order",
-    ["Highest first", "Lowest first", "Alphabetical"],
-    horizontal=True,
-    label_visibility="collapsed",
-)
+sort_col, filter_col = st.columns([3, 1])
+with sort_col:
+    sort_order = st.radio(
+        "Sort order",
+        ["Highest first", "Lowest first", "Alphabetical"],
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+with filter_col:
+    hide_underperformers = st.toggle(
+        "Hide below threshold",
+        value=False,
+        help=f"Exclude suppliers scoring below {threshold:.1f} from this chart.",
+    )
+
 # Sort suppliers. st.bar_chart orders categories alphabetically by default, so
 # we build the chart with Altair and pin the y-axis order to our sorted list to
 # make the sort control actually reorder the bars.
+chart_source = view[view["overall_score"] >= threshold] if hide_underperformers else view
 if sort_order == "Alphabetical":
     ranked = (
-        view[["supplier_name", "overall_score"]]
+        chart_source[["supplier_name", "overall_score"]]
         .sort_values("supplier_name", ascending=True)
         .reset_index(drop=True)
     )
 else:
     ascending = sort_order == "Lowest first"
     ranked = (
-        view[["supplier_name", "overall_score"]]
+        chart_source[["supplier_name", "overall_score"]]
         .sort_values("overall_score", ascending=ascending)
         .reset_index(drop=True)
     )
-# For a top-to-bottom visual order, Altair draws the first row at the top, so
-# the list is already in the order the user picked.
-# Every supplier gets a fixed-height row, so the chart's total height grows
-# with the number of suppliers. It's placed inside a Streamlit scrollable
-# container capped to ~10 rows tall, so only the top 10 show right away and
-# the rest are reachable by scrolling within the chart.
-ROW_HEIGHT = 32
-VISIBLE_ROWS = 10
-bars = alt.Chart(ranked).mark_bar(color="#4f46e5", cornerRadiusEnd=4).encode(
-    x=alt.X("overall_score:Q", title="Overall score", scale=alt.Scale(domain=[0, 5])),
-    y=alt.Y("supplier_name:N", sort=ranked["supplier_name"].tolist(), title="Supplier"),
-    tooltip=[
-        alt.Tooltip("supplier_name:N", title="Supplier"),
-        alt.Tooltip("overall_score:Q", title="Overall score", format=".2f"),
-    ],
-)
-# Score labels at the end of each bar.
-labels = alt.Chart(ranked).mark_text(align="left", dx=5, color="#1e293b", fontWeight=600).encode(
-    x=alt.X("overall_score:Q"),
-    y=alt.Y("supplier_name:N", sort=ranked["supplier_name"].tolist()),
-    text=alt.Text("overall_score:Q", format=".2f"),
-)
-rank_chart = (
-    (bars + labels)
-    .properties(height=max(len(ranked), 1) * ROW_HEIGHT)
-    .configure_view(strokeWidth=0)
-)
-chart_box = st.container(height=VISIBLE_ROWS * ROW_HEIGHT + 40, border=True)
-chart_box.altair_chart(rank_chart, use_container_width=True)
+
+if ranked.empty:
+    st.info("No suppliers meet the current threshold.")
+else:
+    # For a top-to-bottom visual order, Altair draws the first row at the top,
+    # so the list is already in the order the user picked.
+    # Every supplier gets a fixed-height row, so the chart's total height
+    # grows with the number of suppliers. It's placed inside a Streamlit
+    # scrollable container capped to ~10 rows tall, so only the top 10 show
+    # right away and the rest are reachable by scrolling within the chart.
+    ROW_HEIGHT = 32
+    VISIBLE_ROWS = 10
+    bars = alt.Chart(ranked).mark_bar(color="#4f46e5", cornerRadiusEnd=4).encode(
+        x=alt.X("overall_score:Q", title="Overall score", scale=alt.Scale(domain=[0, 5])),
+        y=alt.Y("supplier_name:N", sort=ranked["supplier_name"].tolist(), title="Supplier"),
+        tooltip=[
+            alt.Tooltip("supplier_name:N", title="Supplier"),
+            alt.Tooltip("overall_score:Q", title="Overall score", format=".2f"),
+        ],
+    )
+    # Score labels at the end of each bar.
+    labels = alt.Chart(ranked).mark_text(align="left", dx=5, color="#1e293b", fontWeight=600).encode(
+        x=alt.X("overall_score:Q"),
+        y=alt.Y("supplier_name:N", sort=ranked["supplier_name"].tolist()),
+        text=alt.Text("overall_score:Q", format=".2f"),
+    )
+    rank_chart = (
+        (bars + labels)
+        .properties(height=max(len(ranked), 1) * ROW_HEIGHT)
+        .configure_view(strokeWidth=0)
+    )
+    chart_box = st.container(height=VISIBLE_ROWS * ROW_HEIGHT + 40, border=True)
+    chart_box.altair_chart(rank_chart, use_container_width=True)
 
 st.divider()
 
