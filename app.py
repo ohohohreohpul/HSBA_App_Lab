@@ -28,6 +28,7 @@ from pathlib import Path
 import altair as alt
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from styles import inject_styles, render_header
 
@@ -175,45 +176,48 @@ if view.empty:
 # --------------------------------------------------------------------------- #
 st.subheader("Supplier scorecard")
 
-display_cols = (
-    ["supplier_name", "country", "category_name"]
-    + CRITERIA
-    + ["overall_score", "num_ratings"]
-)
-table = view[display_cols].rename(
-    columns={
-        "supplier_name": "Supplier",
-        "country": "Country",
-        "category_name": "Category",
-        **CRITERIA_LABELS,
-        "overall_score": "Overall",
-        "num_ratings": "# Ratings",
-    }
+# Custom table: one row per supplier, all criteria + overall score, and a
+# "View" button as the last column that jumps to the drill-down below.
+# (st.dataframe can't embed a button in place of its selection checkbox, so
+# the whole table is built manually to make rows genuinely clickable.)
+col_widths = [3, 1.6, 1.8] + [1.1] * len(CRITERIA) + [1, 1, 1]
+col_labels = (
+    ["Supplier", "Country", "Category"]
+    + [CRITERIA_LABELS[c] for c in CRITERIA]
+    + ["Overall", "# Orders Rated", ""]
 )
 
+st.caption("Click “View” to jump to that supplier's drill-down below.")
+with st.container(height=380, border=True):
+    header = st.columns(col_widths)
+    for col, label in zip(header, col_labels):
+        col.markdown(f"**{label}**")
 
-def style_table(df):
-    """Conditional highlighting: red for underperformers, green for strong scorers."""
-    top_cut = df["Overall"].max()
-
-    def row_colour(row):
-        if row["Overall"] < threshold:
-            return ["background-color: #fdecea"] * len(row)  # soft red
-        if row["Overall"] >= max(4.0, top_cut - 0.01):
-            return ["background-color: #eafaf1"] * len(row)  # soft green
-        return [""] * len(row)
-
-    styler = df.style.apply(row_colour, axis=1)
-    styler = styler.format({**{v: "{:.2f}" for v in CRITERIA_LABELS.values()},
-                            "Overall": "{:.2f}"})
-    return styler
-
-
-if highlight_rows:
-    st.dataframe(style_table(table), use_container_width=True, hide_index=True)
-    st.caption("🟥 below threshold  ·  🟩 top scorers")
-else:
-    st.dataframe(table, use_container_width=True, hide_index=True)
+    top_cut = view["overall_score"].max()
+    for _, r in view.iterrows():
+        cols = st.columns(col_widths)
+        cols[0].write(r["supplier_name"])
+        cols[1].write(r["country"])
+        cols[2].write(r["category_name"])
+        for i, c in enumerate(CRITERIA):
+            cols[3 + i].write(f"{r[c]:.2f}")
+        overall_cell = cols[3 + len(CRITERIA)]
+        if highlight_rows and r["overall_score"] < threshold:
+            overall_cell.markdown(
+                f'<span style="color:#ef4444; font-weight:600;">{r["overall_score"]:.2f}</span>',
+                unsafe_allow_html=True,
+            )
+        elif highlight_rows and r["overall_score"] >= max(4.0, top_cut - 0.01):
+            overall_cell.markdown(
+                f'<span style="color:#10b981; font-weight:600;">{r["overall_score"]:.2f}</span>',
+                unsafe_allow_html=True,
+            )
+        else:
+            overall_cell.write(f"{r['overall_score']:.2f}")
+        cols[4 + len(CRITERIA)].write(int(r["num_ratings"]))
+        if cols[5 + len(CRITERIA)].button("View →", key=f"jump_{r['supplier_id']}"):
+            st.session_state["jump_to_supplier"] = r["supplier_name"]
+            st.session_state["scroll_to_drilldown"] = True
 
 # List of flagged suppliers for quick scanning.
 if n_under:
@@ -306,6 +310,7 @@ st.divider()
 # --------------------------------------------------------------------------- #
 # Drill-down (required)
 # --------------------------------------------------------------------------- #
+st.markdown('<div id="drilldown-anchor"></div>', unsafe_allow_html=True)
 st.subheader("Supplier drill-down")
 
 search_col, select_col = st.columns(2)
@@ -323,8 +328,39 @@ if not drilldown_options:
     st.warning(f"No suppliers match “{search_term}”.")
     st.stop()
 
+jump_target = st.session_state.pop("jump_to_supplier", None)
+default_index = 0
+if jump_target in drilldown_options:
+    default_index = drilldown_options.index(jump_target)
+
 with select_col:
-    selected_supplier = st.selectbox("Choose a supplier to inspect", drilldown_options)
+    selected_supplier = st.selectbox(
+        "Choose a supplier to inspect", drilldown_options, index=default_index
+    )
+
+if st.session_state.pop("scroll_to_drilldown", False):
+    # The nonce makes each render's HTML unique, since browsers can skip
+    # re-executing an iframe's script if the content is byte-identical to
+    # the previous render (which it would be on every repeat click).
+    nonce = st.session_state.get("_scroll_nonce", 0) + 1
+    st.session_state["_scroll_nonce"] = nonce
+    components.html(
+        f"""
+        <script>
+        // nonce: {nonce}
+        function scrollToAnchor(attemptsLeft) {{
+            const el = window.parent.document.getElementById("drilldown-anchor");
+            if (el) {{
+                el.scrollIntoView({{behavior: "smooth", block: "start"}});
+            }} else if (attemptsLeft > 0) {{
+                setTimeout(() => scrollToAnchor(attemptsLeft - 1), 100);
+            }}
+        }}
+        setTimeout(() => scrollToAnchor(10), 150);
+        </script>
+        """,
+        height=0,
+    )
 
 row = view[view["supplier_name"] == selected_supplier].iloc[0]
 sup_id = int(row["supplier_id"])
@@ -336,21 +372,56 @@ with left:
     st.write(f"**Country:** {row['country']}")
     st.write(f"**Category:** {row['category_name']}")
     st.write(f"**Contact:** {row['contact_email']}")
-    st.metric("Overall score", f"{row['overall_score']:.2f}")
-    if row["overall_score"] < threshold:
-        st.error("Flagged as an underperformer.")
-    else:
-        st.success("Meets the performance threshold.")
+    meets_threshold = row["overall_score"] >= threshold
+    score_bg = "#eafaf1" if meets_threshold else "#fdecea"
+    score_color = "#10b981" if meets_threshold else "#ef4444"
+    # Recompute from the rounded criterion values shown in the card, so the
+    # displayed formula adds up exactly to the displayed result.
+    formula_result = sum(row[c] for c in CRITERIA) / len(CRITERIA)
+    terms = "".join(
+        f'<span style="display:inline-flex; flex-direction:column; align-items:center;">'
+        f'<span style="color:#000000; font-weight:600;">{row[c]:.2f}</span>'
+        f'<span style="color:#000000; font-size:0.75rem;">{CRITERIA_LABELS[c]}</span>'
+        f'</span>'
+        + ("<span style='color:#000000;'>+</span>" if i < len(CRITERIA) - 1 else "")
+        for i, c in enumerate(CRITERIA)
+    )
+    card_html = (
+        f'<div style="background:{score_bg}; border-radius:16px; padding:18px 20px; '
+        f'box-shadow:0 1px 2px rgba(16,24,40,0.04);">'
+        f'<div style="color:#000000; font-weight:700; font-size:1.1rem;">Overall score</div>'
+        f'<div style="color:{score_color}; font-weight:700; font-size:2.25rem; line-height:1.3;">'
+        f'{row["overall_score"]:.2f}</div>'
+        f'<div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(0,0,0,0.06); '
+        f'display:flex; align-items:flex-start; gap:8px; font-size:1rem; flex-wrap:wrap;">'
+        f'<span style="color:#000000;">(</span>{terms}'
+        f'<span style="color:#000000;">) / 4 = {formula_result:.2f}</span>'
+        f'</div></div>'
+    )
+    st.markdown(card_html, unsafe_allow_html=True)
 
 with right:
     st.markdown("#### Criterion breakdown")
+    st.caption("This supplier's average score per criterion (1–5 scale).")
     breakdown = pd.DataFrame(
         {
             "Criterion": [CRITERIA_LABELS[c] for c in CRITERIA],
-            "Average score": [row[c] for c in CRITERIA],
+            "Score": [row[c] for c in CRITERIA],
         }
     ).set_index("Criterion")
-    st.bar_chart(breakdown, y_label="Average score (1–5)")
+    breakdown_chart = (
+        alt.Chart(breakdown.reset_index())
+        .mark_bar(color="#4f46e5", cornerRadiusEnd=4)
+        .encode(
+            x=alt.X("Criterion:N", title=None, sort=None),
+            y=alt.Y("Score:Q", title="Score (1–5)", scale=alt.Scale(domain=[0, 5])),
+            tooltip=[
+                alt.Tooltip("Criterion:N"),
+                alt.Tooltip("Score:Q", format=".2f"),
+            ],
+        )
+    )
+    st.altair_chart(breakdown_chart, use_container_width=True)
 
 # Orders for this supplier.
 st.markdown("#### Orders")
