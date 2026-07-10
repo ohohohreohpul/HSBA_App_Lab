@@ -13,6 +13,15 @@ Streamlit runs `app.py` as one process that both computes the data (backend
 logic: loading CSVs, aggregating scores) and renders the UI (frontend: the
 page you see in the browser). Starting it starts both at once.
 
+## Get the code
+
+Clone the repository:
+
+```bash
+git clone https://github.com/Nodolas/uni_aufgabe.git
+cd uni_aufgabe
+```
+
 ## Run it
 
 1. **Install dependencies** (one-time setup):
@@ -40,13 +49,7 @@ page you see in the browser). Starting it starts both at once.
 
 Runs locally or in GitHub Codespaces.
 
-## Regenerate the sample data (optional)
-
-The CSV files in `data/` are already generated and committed. To recreate them:
-
-```bash
-python generate_data.py
-```
+The CSV files in `data/` are already generated and committed.
 
 ## Data model
 
@@ -87,8 +90,11 @@ categories (1) ──< suppliers (1) ──< orders (1) ──< ratings
 ```
 app.py             # the Streamlit application
 styles.py          # custom CSS: fonts, palette, subtle animations
-generate_data.py   # (re)generates the CSV sample data
 requirements.txt   # Python dependencies
 data/              # the four CSV tables
 README.md
 ```
+
+## Repository
+
+https://github.com/Nodolas/uni_aufgabe
