@@ -87,12 +87,14 @@ with w3:
         st.switch_page("pages/4_Analytics.py")
 
 # --------------------------------------------------------------------------- #
-# Discreet admin unlock — intentionally low-key in the footer.
+# Footer
 # --------------------------------------------------------------------------- #
-st.write("")
-st.write("")
-_, right = st.columns([6, 1])
-with right:
-    if st.button("·", key="admin_dot", help="Staff access"):
-        st.query_params["admin"] = "unlock"
-        st.switch_page("pages/5_Admin.py")
+st.markdown(
+    """
+    <div class="app-footer">
+        Supplier Scorecard · <strong>Innovation Management M.Sc.</strong><br>
+        A university group project.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)

@@ -77,6 +77,11 @@ h1 { font-weight: 800 !important; }
 
 hr { margin:1.4rem 0; opacity:.5; }
 
+/* Page footer */
+.app-footer { margin-top:40px; padding:22px 0 10px; border-top:1px solid var(--line);
+              text-align:center; color:var(--muted); font-size:.85rem; line-height:1.5; }
+.app-footer strong { color:var(--accent); font-weight:600; }
+
 @keyframes fadeInUp { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
 
 #MainMenu { visibility:hidden; }
@@ -86,33 +91,27 @@ footer { visibility:hidden; }
 /* Nav pills spacing (st.navigation top bar already handles this; this is for our breadcrumb) */
 .crumb { color:var(--muted); font-size:.85rem; margin-bottom:.2rem; }
 
-/* ---- Sidebar admin block: pinned to the bottom, quiet/grey styling -------- */
-/* Make the sidebar content a full-height flex column so a margin-top:auto
-   element inside it is pushed to the very bottom. */
-[data-testid="stSidebarUserContent"] {
-    display: flex;
-    flex-direction: column;
-    min-height: calc(100vh - 4rem);
+/* ---- Remove the left sidebar entirely (top nav is the only navigation) ---- */
+[data-testid="stSidebar"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] { display: none !important; }
+
+/* ---- Admin: the last item in the top nav, greyed out -------------------- */
+/* st.navigation(position="top") renders the page links inside the header.
+   The Admin page is always last, so grey the final nav link so it reads as a
+   quieter, secondary entry than the main workflow pages. */
+[data-testid="stHeader"] a[href*="Admin"],
+header a[href*="Admin"] {
+    color: #94a3b8 !important;
+    opacity: .8;
 }
-/* The admin block is marked by an empty #admin-anchor div; the container that
-   holds it (and, via order, everything after) is pushed to the bottom. */
-[data-testid="stSidebarUserContent"] [data-testid="stElementContainer"]:has(#admin-anchor) {
-    margin-top: auto;
+[data-testid="stHeader"] a[href*="Admin"] *,
+header a[href*="Admin"] * {
+    color: #94a3b8 !important;
+    fill: #94a3b8 !important;
 }
-/* Quiet, grey buttons in the sidebar (it only holds the admin controls) so
-   they read as secondary, not as a prominent accent action. */
-[data-testid="stSidebar"] .stButton > button {
-    border: 1px solid #d5d9e2;
-    background: #f3f4f8;
-    color: #64748b;
-    font-weight: 500;
-    box-shadow: none;
-}
-[data-testid="stSidebar"] .stButton > button:hover {
-    background: #e7e9f0;
-    color: #475569;
-    transform: none;
-}
+[data-testid="stHeader"] a[href*="Admin"]:hover,
+header a[href*="Admin"]:hover { opacity: 1; }
 </style>
 """
 
@@ -145,38 +144,6 @@ def breadcrumb(*parts: str) -> None:
     st.markdown('<div class="crumb">' + " › ".join(parts) + "</div>", unsafe_allow_html=True)
 
 
-def render_admin_sidebar() -> None:
-    """Left-sidebar admin control, pinned to the BOTTOM of the sidebar and
-    styled quiet/grey so it doesn't compete with the main content.
-
-    Logged out → a discreet grey button that opens the Admin login.
-    Logged in  → admin status + shortcuts to data management and log-out.
-    """
-    from lib.admin import is_admin, logout  # local import avoids a cycle
-
-    with st.sidebar:
-        # Anchor: CSS gives this `margin-top:auto`, pushing it and everything
-        # after it to the bottom of the sidebar.
-        st.markdown('<div id="admin-anchor"></div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div style="color:#94a3b8;font-size:.8rem;font-weight:600;'
-            'text-transform:uppercase;letter-spacing:.06em;">🔐 Admin</div>',
-            unsafe_allow_html=True,
-        )
-        if is_admin():
-            st.caption("Admin mode is on — you can add, edit and delete data.")
-            if st.button("Open data management", use_container_width=True):
-                st.query_params["admin"] = "unlock"
-                st.switch_page("pages/5_Admin.py")
-            if st.button("Log out of admin", use_container_width=True):
-                logout()
-                st.query_params.clear()
-                st.rerun()
-        else:
-            st.caption("Enter the access code to edit supplier data.")
-            if st.button("Activate admin mode", use_container_width=True):
-                st.query_params["admin"] = "unlock"
-                st.switch_page("pages/5_Admin.py")
 
 
 def score_info_popover(key: str = "") -> None:

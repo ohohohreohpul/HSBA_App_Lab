@@ -145,14 +145,15 @@ display = view.copy()
 display["Supplier"] = display.apply(
     lambda r: f"⚠ {r['supplier_name']}" if r["low_confidence"] else r["supplier_name"], axis=1
 )
+# First column: a per-row action button ("Open ▶") that opens the drilldown.
+display["Select for drilldown"] = ":material/arrow_forward: Open"
 display = display.rename(columns={
     "country": "Country", "category_name": "Category",
     "overall_score": "Overall", "risk_level": "Risk",
     "num_orders": "Orders", "total_spend": "Spend (€)", "num_ratings": "Ratings",
     **CRITERIA_LABELS,
 })
-label_to_key = {v: k for k, v in all_cols.items()}
-ordered = ["Supplier"] + [all_cols[c] for c in visible if c != "supplier_name"]
+ordered = ["Select for drilldown", "Supplier"] + [all_cols[c] for c in visible if c != "supplier_name"]
 ordered = list(dict.fromkeys(ordered))  # de-dupe, keep order
 table = display[ordered]
 
@@ -170,23 +171,38 @@ styler = table.style.apply(_risk_style, axis=1).format(
     | ({"Spend (€)": "€{:,.0f}"} if "Spend (€)" in table.columns else {})
 )
 
-st.caption("💡 Click any row to open that supplier's drilldown.")
-event = st.dataframe(
+
+def _open_drilldown() -> None:
+    """ButtonColumn callback: map the clicked row to a supplier and navigate.
+    Rows are in the same order as `view`, so row index maps directly."""
+    click = st.session_state.get("drill_click")
+    if click is not None:
+        pos = click["row"]
+        if 0 <= pos < len(view):
+            st.session_state["drilldown_supplier"] = view.iloc[pos]["supplier_name"]
+            st.session_state["_go_drilldown"] = True
+
+
+st.info("Click **Open ▶** on a supplier's row to open its drilldown.", icon="💡")
+st.dataframe(
     styler, use_container_width=True, hide_index=True, height=440,
-    on_select="rerun", selection_mode="single-row", key="scorecard_table",
+    key="scorecard_table",
+    column_config={
+        "Select for drilldown": st.column_config.ButtonColumn(
+            "Select for drilldown",
+            help="Open this supplier's drilldown",
+            on_click=_open_drilldown,
+            key="drill_click",
+        ),
+    },
 )
 
-# Clicking a row selects that supplier and jumps straight to the drilldown.
-# The table rows are in the same order as `view`, so the selected row position
-# maps directly back to a supplier name.
-selected_rows = event.selection.get("rows", []) if event and event.selection else []
-if selected_rows:
-    pos = selected_rows[0]
-    if 0 <= pos < len(view):
-        st.session_state["drilldown_supplier"] = view.iloc[pos]["supplier_name"]
-        st.switch_page("pages/3_Drilldown.py")
+# The callback can't call st.switch_page (it runs before the rerun completes),
+# so it sets a flag and we navigate here on the resulting rerun.
+if st.session_state.pop("_go_drilldown", False):
+    st.switch_page("pages/3_Drilldown.py")
 
-# Fallback: a dropdown + button for keyboard users / when a row isn't clicked.
+# Alternative: a dropdown + button (keyboard-friendly).
 st.write("")
 st.markdown("**Or pick a supplier and open its drilldown**")
 jump_c1, jump_c2 = st.columns([3, 1], vertical_alignment="bottom")
