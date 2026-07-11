@@ -42,7 +42,10 @@ html, body, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif; }
 h1, h2, h3, h4 { color: var(--ink) !important; letter-spacing: -0.02em; }
 h1 { font-weight: 800 !important; }
 
-.main .block-container { padding-top: 2rem; max-width: 1280px; }
+.main .block-container { padding-top: 2rem; max-width: 1280px;
+    min-height: calc(100vh - 3rem); display: flex; flex-direction: column; }
+/* Push the footer to the very bottom of the page */
+.main .block-container > div:has(.app-footer) { margin-top: auto; animation: none; }
 .main .block-container > div { animation: fadeInUp 0.45s ease both; }
 
 /* KPI tiles */

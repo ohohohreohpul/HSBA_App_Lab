@@ -93,7 +93,7 @@ st.markdown(
     """
     <div class="app-footer">
         Supplier Scorecard · <strong>Innovation Management M.Sc.</strong><br>
-        A university group project.
+        HSBA Hamburg School of Business Administration
     </div>
     """,
     unsafe_allow_html=True,
