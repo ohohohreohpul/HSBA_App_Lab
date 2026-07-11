@@ -57,18 +57,31 @@ Streamlit opens <http://localhost:8501>. Stop it with `Ctrl+C`.
 
 ## Scoring
 
-Ratings are on a **1–5 scale**, recorded per order. Each supplier's per-criterion
-score is the mean of its order ratings. The **overall score is a weighted
-average**:
+Each criterion is expressed on a **1–5 scale**, but they come from two sources:
+
+- **Delivery Time** and **Price** are derived from *real measured quantities*:
+  - Delivery = average **days** between `order_date` and `delivery_date`
+    (≤5 days → 5.0, ≥30 days → 1.0, linear).
+  - Price = average **order value in €**, scaled across all suppliers
+    (cheapest → 5.0, priciest → 1.0).
+- **Quality** and **Communication** are the mean of the supplier's 1–5 order
+  ratings.
+
+The **overall score is a weighted average**:
 
 ```
 Overall = 0.30·Delivery + 0.35·Quality + 0.20·Price + 0.15·Communication
 ```
 
-Weights live in `lib/core.py` (`CRITERIA_WEIGHTS`) — change them there and the
-whole app updates. Overall scores map to **risk bands**: High (< 2.5),
-Medium (2.5–3.5), Low (≥ 3.5). Suppliers with fewer than 3 rated orders are
-marked **low confidence**.
+Weights and the days→score band live in `lib/core.py` (`CRITERIA_WEIGHTS`,
+`DELIVERY_FAST_DAYS`/`DELIVERY_SLOW_DAYS`). Overall scores map to **risk bands**:
+High (< 2.5), Medium (2.5–3.5), Low (≥ 3.5). Suppliers with fewer than 3 rated
+orders are **low confidence**; suppliers with no delivered orders have no
+measurable delivery time (scored a neutral 3.0 and flagged as missing data).
+
+The drilldown's **Criterion averages** tiles show the real averages — average
+**days** for delivery, average **€** for price, average rating for quality and
+communication — each with the 1–5 score it maps to.
 
 ## Fuzzy search
 
@@ -109,7 +122,7 @@ categories (1) ──< suppliers (1) ──< orders (1) ──< ratings
 |-------|-------------|
 | `categories.csv` | `category_id`, `category_name`, `description` |
 | `suppliers.csv` | `supplier_id`, `supplier_name`, `country`, `category_id`, `contact_email` |
-| `orders.csv` | `order_id`, `supplier_id`, `order_date`, `amount_eur`, `status` |
+| `orders.csv` | `order_id`, `supplier_id`, `order_date`, `delivery_date`, `amount_eur`, `status` |
 | `ratings.csv` | `rating_id`, `order_id`, `supplier_id`, `delivery_time`, `quality`, `price`, `communication` |
 
 ## Design & roadmap

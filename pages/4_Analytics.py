@@ -11,8 +11,10 @@ from lib.core import (
     CRITERIA_LABELS,
     CRITERIA_WEIGHTS,
     DEFAULT_THRESHOLD,
+    _linear_score,
     apply_filters,
     build_scoreboard,
+    delivery_days_to_score,
     load_tables,
 )
 from lib.ui import breadcrumb, kpi_row
@@ -154,12 +156,18 @@ st.altair_chart(
 # --------------------------------------------------------------------------- #
 st.subheader("Monthly score trend")
 ids = set(view["supplier_id"])
-tr = ratings[ratings["supplier_id"].isin(ids)].merge(
-    orders[["order_id", "order_date"]], on="order_id", how="left"
+tr = orders[orders["supplier_id"].isin(ids)].merge(
+    ratings[["order_id", "quality", "communication"]], on="order_id", how="left"
 ).dropna(subset=["order_date"]).copy()
 if tr.empty:
-    st.info("No dated ratings for the current selection.")
+    st.info("No dated orders for the current selection.")
 else:
+    # Per-order overall consistent with the measured scoring.
+    pmin, pmax = tr["amount_eur"].min(), tr["amount_eur"].max()
+    tr["delivery_time"] = tr["delivery_days"].apply(
+        lambda d: 3.0 if pd.isna(d) else delivery_days_to_score(d)
+    )
+    tr["price"] = tr["amount_eur"].apply(lambda v: _linear_score(v, best=pmin, worst=pmax))
     tr["overall"] = sum(tr[c] * CRITERIA_WEIGHTS[c] for c in CRITERIA)
     tr["month"] = tr["order_date"].dt.to_period("M").dt.start_time
     monthly = tr.groupby("month").agg(

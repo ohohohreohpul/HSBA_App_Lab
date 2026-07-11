@@ -11,7 +11,9 @@ from lib.core import (
     CRITERIA_LABELS,
     CRITERIA_WEIGHTS,
     DEFAULT_THRESHOLD,
+    _linear_score,
     build_scoreboard,
+    delivery_days_to_score,
     load_tables,
     risk_color,
     suggest_names,
@@ -76,7 +78,7 @@ st.divider()
 # --------------------------------------------------------------------------- #
 left, right = st.columns([1, 1])
 with left:
-    st.subheader("Average rating per criterion")
+    st.subheader("Criterion averages")
     comp = pd.DataFrame({
         "Criterion": [CRITERIA_LABELS[c] for c in CRITERIA],
         "Score": [row[c] for c in CRITERIA],
@@ -84,25 +86,46 @@ with left:
     })
     comp["Contribution"] = (comp["Score"] * comp["Weight"]).round(3)
 
-    # Four metric tiles (2×2), each showing the average rating for a criterion.
+    # Per-criterion tile spec: what real average to show and how to format it.
+    #   Delivery → average days (measured)   Price → average € (measured)
+    #   Quality / Communication → average 1–5 rating
+    def _avg_days(r):
+        v = r["avg_delivery_days"]
+        return "—" if pd.isna(v) else f"{v:.1f} days"
+
+    def _avg_eur(r):
+        v = r["avg_price_eur"]
+        return "—" if pd.isna(v) else f"€{v:,.0f}"
+
+    tile_spec = {
+        "delivery_time": ("Delivery Time", _avg_days(row),
+                          "Average days from order to delivery (measured)."),
+        "quality": ("Quality", f"{row['quality']:.2f}" if pd.notna(row['quality']) else "—",
+                    "Average of this supplier's quality ratings (1–5)."),
+        "price": ("Price", _avg_eur(row),
+                  "Average order value (measured). Cheaper = better score."),
+        "communication": ("Communication",
+                          f"{row['communication']:.2f}" if pd.notna(row['communication']) else "—",
+                          "Average of this supplier's communication ratings (1–5)."),
+    }
+
+    # 2×2 tiles: big number = the real average; the delta shows the 1–5 score
+    # that average maps to (so you see both the measurement and its score).
     tile_rows = [CRITERIA[i:i + 2] for i in range(0, len(CRITERIA), 2)]
     for pair in tile_rows:
         cols = st.columns(2)
         for col, crit in zip(cols, pair):
-            avg = row[crit]
+            label, value, help_txt = tile_spec[crit]
+            score = row[crit]
             col.metric(
-                CRITERIA_LABELS[crit],
-                f"{avg:.2f}" if pd.notna(avg) else "—",
-                help=f"Average of this supplier's order ratings for "
-                     f"{CRITERIA_LABELS[crit]} (1–5 scale). "
-                     f"Weight in overall score: {CRITERIA_WEIGHTS[crit]*100:.0f}%.",
+                label, value,
+                delta=(f"score {score:.2f}/5" if pd.notna(score) else None),
+                delta_color="off",
+                help=help_txt + f" Weight in overall: {CRITERIA_WEIGHTS[crit]*100:.0f}%.",
             )
-    st.caption(
-        "Each tile is the average of this supplier's order ratings (1–5). "
-        "Overall = Σ (average × weight) = "
-        + " + ".join(f"{r.Score:.2f}×{r.Weight:.2f}" for r in comp.itertuples())
-        + f" = **{row['overall_score']:.2f}**"
-    )
+    if row.get("missing_delivery_data", False):
+        st.caption("⚠ No delivered orders yet — delivery time is unmeasured "
+                   "(scored neutral 3.0).")
 
 with right:
     st.subheader("Threshold violations")
@@ -133,14 +156,24 @@ with right:
 st.divider()
 
 # --------------------------------------------------------------------------- #
-# Trend over time — quarterly average of this supplier's order ratings
+# Trend over time — quarterly average overall score, consistent with the
+# measured scoring (per-order delivery score from days, price score from €,
+# quality & communication from ratings).
 # --------------------------------------------------------------------------- #
 st.subheader("Performance trend")
-sup_ratings = ratings[ratings["supplier_id"] == sid].merge(
-    orders[["order_id", "order_date"]], on="order_id", how="left"
+sup_ratings = orders[orders["supplier_id"] == sid].merge(
+    ratings[["order_id", "quality", "communication"]], on="order_id", how="left"
 )
 if sup_ratings["order_date"].notna().any():
     sup_ratings = sup_ratings.dropna(subset=["order_date"]).copy()
+    # Per-order price score, scaled across this supplier's own orders.
+    pmin, pmax = sup_ratings["amount_eur"].min(), sup_ratings["amount_eur"].max()
+    sup_ratings["delivery_time"] = sup_ratings["delivery_days"].apply(
+        lambda d: 3.0 if pd.isna(d) else delivery_days_to_score(d)
+    )
+    sup_ratings["price"] = sup_ratings["amount_eur"].apply(
+        lambda v: _linear_score(v, best=pmin, worst=pmax)
+    )
     sup_ratings["overall"] = sum(sup_ratings[c] * CRITERIA_WEIGHTS[c] for c in CRITERIA)
     sup_ratings["period"] = sup_ratings["order_date"].dt.to_period("Q").dt.start_time
     trend = sup_ratings.groupby("period")["overall"].mean().reset_index()
@@ -172,14 +205,30 @@ sup_orders = orders[orders["supplier_id"] == sid].copy()
 if sup_orders.empty:
     st.info("No orders on record.")
 else:
-    sup_orders = sup_orders.merge(ratings[["order_id", *CRITERIA]], on="order_id", how="left")
-    sup_orders["order_date"] = sup_orders["order_date"].dt.date
-    ov = sup_orders.rename(columns={
-        "order_id": "Order", "order_date": "Date", "amount_eur": "Amount (€)",
-        "status": "Status", **CRITERIA_LABELS,
-    })[["Order", "Date", "Amount (€)", "Status", *CRITERIA_LABELS.values()]]
-    st.dataframe(
-        ov.sort_values("Date"), use_container_width=True, hide_index=True,
-        column_config={"Amount (€)": st.column_config.NumberColumn(format="€%.0f")},
+    # Show the measured delivery (date + days) per order, plus the quality &
+    # communication ratings for that order.
+    rating_cols = ["quality", "communication"]
+    sup_orders = sup_orders.merge(
+        ratings[["order_id", *rating_cols]], on="order_id", how="left"
     )
-    st.caption(f"{len(sup_orders)} order(s) · total €{sup_orders['amount_eur'].sum():,.0f}")
+    sup_orders["order_date"] = sup_orders["order_date"].dt.date
+    sup_orders["delivery_date"] = pd.to_datetime(sup_orders["delivery_date"]).dt.date
+    ov = sup_orders.rename(columns={
+        "order_id": "Order", "order_date": "Ordered", "delivery_date": "Delivered",
+        "delivery_days": "Days", "amount_eur": "Amount (€)", "status": "Status",
+        "quality": "Quality", "communication": "Communication",
+    })[["Order", "Ordered", "Delivered", "Days", "Amount (€)", "Status",
+        "Quality", "Communication"]]
+    st.dataframe(
+        ov.sort_values("Ordered"), use_container_width=True, hide_index=True,
+        column_config={
+            "Amount (€)": st.column_config.NumberColumn(format="€%.0f"),
+            "Days": st.column_config.NumberColumn(format="%d d"),
+        },
+    )
+    avg_days = sup_orders["delivery_days"].mean()
+    days_txt = f" · avg delivery {avg_days:.1f} days" if pd.notna(avg_days) else ""
+    st.caption(
+        f"{len(sup_orders)} order(s) · total €{sup_orders['amount_eur'].sum():,.0f}"
+        f"{days_txt}"
+    )

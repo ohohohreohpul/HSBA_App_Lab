@@ -51,6 +51,42 @@ CRITERIA_WEIGHTS = {
     "communication": 0.15,
 }
 
+# --------------------------------------------------------------------------- #
+# Measured-metric scoring.
+#
+# Delivery and Price are no longer subjective 1–5 ratings — they are derived
+# from real measured quantities and converted to a 1–5 score:
+#   * Delivery: average days between order_date and delivery_date (faster = better)
+#   * Price:    average order value in € (cheaper = better)
+# Quality and Communication remain 1–5 ratings from ratings.csv.
+# --------------------------------------------------------------------------- #
+# Which criteria are measured (derived) vs. a plain rating.
+MEASURED_CRITERIA = {"delivery_time", "price"}
+RATING_CRITERIA = {"quality", "communication"}
+
+# Delivery: linear band. <= FAST days scores 5, >= SLOW days scores 1.
+DELIVERY_FAST_DAYS = 5.0     # this fast or better → 5.0
+DELIVERY_SLOW_DAYS = 30.0    # this slow or worse → 1.0
+
+# Price: cheaper is better. Scored linearly across the observed price range
+# (min avg price across suppliers → 5.0, max → 1.0). Computed at build time.
+
+
+def _linear_score(value: float, best: float, worst: float) -> float:
+    """Map a measured value to a 1–5 score. `best` → 5.0, `worst` → 1.0,
+    linear in between, clamped. Works whether best<worst or best>worst."""
+    if pd.isna(value) or best == worst:
+        return float("nan") if pd.isna(value) else 3.0
+    frac = (value - worst) / (best - worst)
+    frac = min(max(frac, 0.0), 1.0)
+    return round(1.0 + 4.0 * frac, 2)
+
+
+def delivery_days_to_score(days: float) -> float:
+    """Fewer days = higher score (5 at ≤5 days, 1 at ≥30 days)."""
+    return _linear_score(days, best=DELIVERY_FAST_DAYS, worst=DELIVERY_SLOW_DAYS)
+
+
 # A supplier needs at least this many rated orders before we fully trust its
 # score. Below it, the score is shown but flagged "low confidence".
 MIN_RATINGS_FOR_CONFIDENCE = 3
@@ -109,6 +145,12 @@ def load_tables() -> dict[str, pd.DataFrame]:
     orders = pd.read_csv(DATA_DIR / "orders.csv")
     ratings = pd.read_csv(DATA_DIR / "ratings.csv")
     orders["order_date"] = pd.to_datetime(orders["order_date"], errors="coerce")
+    if "delivery_date" in orders.columns:
+        orders["delivery_date"] = pd.to_datetime(orders["delivery_date"], errors="coerce")
+        orders["delivery_days"] = (orders["delivery_date"] - orders["order_date"]).dt.days
+    else:
+        orders["delivery_date"] = pd.NaT
+        orders["delivery_days"] = pd.NA
     return {
         "categories": categories,
         "suppliers": suppliers,
@@ -125,13 +167,8 @@ def build_scoreboard() -> pd.DataFrame:
     suppliers, categories = t["suppliers"], t["categories"]
     orders, ratings = t["orders"], t["ratings"]
 
-    # Average each criterion per supplier.
-    per = ratings.groupby("supplier_id")[CRITERIA].mean().reset_index()
-
-    # Weighted overall score.
-    per["overall_score"] = sum(
-        per[c] * CRITERIA_WEIGHTS[c] for c in CRITERIA
-    )
+    # Quality & communication remain averaged 1–5 ratings.
+    per = ratings.groupby("supplier_id")[list(RATING_CRITERIA)].mean().reset_index()
 
     # Rating counts (confidence context).
     per["num_ratings"] = (
@@ -143,13 +180,15 @@ def build_scoreboard() -> pd.DataFrame:
         categories[["category_id", "category_name"]], on="category_id", how="left"
     )
 
-    # Order stats (spend, order count, last order date).
+    # Order stats (spend, order count, last order, + measured metrics).
     ostats = (
         orders.groupby("supplier_id")
         .agg(
             num_orders=("order_id", "count"),
             total_spend=("amount_eur", "sum"),
             last_order=("order_date", "max"),
+            avg_delivery_days=("delivery_days", "mean"),
+            avg_price_eur=("amount_eur", "mean"),
         )
         .reset_index()
     )
@@ -159,7 +198,32 @@ def build_scoreboard() -> pd.DataFrame:
     board["num_orders"] = board["num_orders"].fillna(0).astype(int)
     board["total_spend"] = board["total_spend"].fillna(0.0)
 
-    for col in CRITERIA + ["overall_score"]:
+    # --- Measured → score conversions -------------------------------------- #
+    # Flag suppliers with no delivered orders (hence no measurable delivery time).
+    board["missing_delivery_data"] = board["avg_delivery_days"].isna()
+
+    # Delivery: fewer avg days = higher score (fixed linear band). Suppliers with
+    # no delivered orders get a neutral 3.0 so the overall score still computes;
+    # they're flagged via missing_delivery_data / has_missing_data.
+    board["delivery_time"] = board["avg_delivery_days"].apply(
+        lambda d: 3.0 if pd.isna(d) else delivery_days_to_score(d)
+    )
+
+    # Price: cheaper avg order = higher score, scaled across the observed range
+    # of supplier average prices (cheapest supplier → 5, priciest → 1).
+    valid_price = board["avg_price_eur"].dropna()
+    if len(valid_price):
+        cheap, pricey = valid_price.min(), valid_price.max()
+        board["price"] = board["avg_price_eur"].apply(
+            lambda v: _linear_score(v, best=cheap, worst=pricey)
+        )
+    else:
+        board["price"] = float("nan")
+
+    # Weighted overall score (delivery & price now from measured metrics).
+    board["overall_score"] = sum(board[c] * CRITERIA_WEIGHTS[c] for c in CRITERIA)
+
+    for col in list(CRITERIA) + ["overall_score", "avg_delivery_days", "avg_price_eur"]:
         board[col] = board[col].round(2)
 
     board["risk_level"] = board["overall_score"].apply(risk_level)
@@ -168,6 +232,7 @@ def build_scoreboard() -> pd.DataFrame:
         board["overall_score"].isna()
         | board["contact_email"].isna()
         | (board["num_ratings"] == 0)
+        | board["missing_delivery_data"]
     )
     return board
 

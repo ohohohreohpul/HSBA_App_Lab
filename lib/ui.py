@@ -183,11 +183,21 @@ def score_info_popover(key: str = "") -> None:
     """The '(i) how is this score calculated?' popover — full transparency."""
     info = explain_formula()
     with st.popover("ⓘ How is this score calculated?", use_container_width=False):
+        from lib.core import DELIVERY_FAST_DAYS, DELIVERY_SLOW_DAYS
+
         st.markdown("#### Overall score formula")
         st.markdown(
-            "The overall score is a **weighted average** of four criterion "
-            "averages (each on a 1–5 scale). Every supplier's per-criterion "
-            "score is the mean of its individual order ratings."
+            "The overall score is a **weighted average** of four criteria, each "
+            "expressed on a 1–5 scale:"
+        )
+        st.markdown(
+            f"- **Delivery Time** — from the *measured* average days between "
+            f"order and delivery: ≤{DELIVERY_FAST_DAYS:.0f} days → 5.0, "
+            f"≥{DELIVERY_SLOW_DAYS:.0f} days → 1.0 (linear).\n"
+            "- **Price** — from the *measured* average order value in €, scaled "
+            "across all suppliers (cheapest → 5.0, priciest → 1.0).\n"
+            "- **Quality** — average of the supplier's quality ratings (1–5).\n"
+            "- **Communication** — average of its communication ratings (1–5)."
         )
         st.latex(
             r"\text{Overall} = "
