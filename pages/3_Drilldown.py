@@ -76,28 +76,30 @@ st.divider()
 # --------------------------------------------------------------------------- #
 left, right = st.columns([1, 1])
 with left:
-    st.subheader("Score components")
+    st.subheader("Average rating per criterion")
     comp = pd.DataFrame({
         "Criterion": [CRITERIA_LABELS[c] for c in CRITERIA],
         "Score": [row[c] for c in CRITERIA],
         "Weight": [CRITERIA_WEIGHTS[c] for c in CRITERIA],
     })
     comp["Contribution"] = (comp["Score"] * comp["Weight"]).round(3)
-    bar = (
-        alt.Chart(comp)
-        .mark_bar(cornerRadiusEnd=4, color="#4f46e5")
-        .encode(
-            x=alt.X("Score:Q", scale=alt.Scale(domain=[0, 5]), title="Score (1–5)"),
-            y=alt.Y("Criterion:N", sort=None, title=None),
-            tooltip=["Criterion", alt.Tooltip("Score", format=".2f"),
-                     alt.Tooltip("Weight", format=".0%"),
-                     alt.Tooltip("Contribution", format=".3f")],
-        )
-        .properties(height=170)
-    )
-    st.altair_chart(bar, use_container_width=True)
+
+    # Four metric tiles (2×2), each showing the average rating for a criterion.
+    tile_rows = [CRITERIA[i:i + 2] for i in range(0, len(CRITERIA), 2)]
+    for pair in tile_rows:
+        cols = st.columns(2)
+        for col, crit in zip(cols, pair):
+            avg = row[crit]
+            col.metric(
+                CRITERIA_LABELS[crit],
+                f"{avg:.2f}" if pd.notna(avg) else "—",
+                help=f"Average of this supplier's order ratings for "
+                     f"{CRITERIA_LABELS[crit]} (1–5 scale). "
+                     f"Weight in overall score: {CRITERIA_WEIGHTS[crit]*100:.0f}%.",
+            )
     st.caption(
-        "Overall = Σ (score × weight) = "
+        "Each tile is the average of this supplier's order ratings (1–5). "
+        "Overall = Σ (average × weight) = "
         + " + ".join(f"{r.Score:.2f}×{r.Weight:.2f}" for r in comp.itertuples())
         + f" = **{row['overall_score']:.2f}**"
     )
