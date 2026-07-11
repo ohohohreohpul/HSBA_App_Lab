@@ -175,23 +175,39 @@ if sup_ratings["order_date"].notna().any():
         lambda v: _linear_score(v, best=pmin, worst=pmax)
     )
     sup_ratings["overall"] = sum(sup_ratings[c] * CRITERIA_WEIGHTS[c] for c in CRITERIA)
-    sup_ratings["period"] = sup_ratings["order_date"].dt.to_period("Q").dt.start_time
-    trend = sup_ratings.groupby("period")["overall"].mean().reset_index()
+    period = sup_ratings["order_date"].dt.to_period("Q")
+    sup_ratings["period"] = period.dt.start_time
+    # Human-readable quarter label, e.g. "Q2 2025".
+    sup_ratings["quarter"] = period.apply(lambda p: f"Q{p.quarter} {p.year}")
+    trend = (
+        sup_ratings.groupby(["period", "quarter"])["overall"]
+        .mean().reset_index().sort_values("period")
+    )
+    # A constant column drives the colour legend so the blue line is labelled.
+    trend["series"] = "Avg. overall score"
     line = (
         alt.Chart(trend)
-        .mark_line(point=True, color="#4f46e5", strokeWidth=3)
+        .mark_line(point=True, strokeWidth=3)
         .encode(
-            x=alt.X("period:T", title="Quarter"),
+            x=alt.X(
+                "quarter:N", title="Quarter",
+                sort=trend["quarter"].tolist(),
+            ),
             y=alt.Y("overall:Q", scale=alt.Scale(domain=[1, 5]), title="Avg. overall"),
-            tooltip=[alt.Tooltip("period:T", title="Quarter"),
-                     alt.Tooltip("overall:Q", format=".2f")],
+            color=alt.Color(
+                "series:N", title=None,
+                scale=alt.Scale(range=["#4f46e5"]),
+                legend=alt.Legend(orient="top"),
+            ),
+            tooltip=[alt.Tooltip("quarter:N", title="Quarter"),
+                     alt.Tooltip("overall:Q", title="Avg. overall", format=".2f")],
         )
         .properties(height=240)
     )
     rule = alt.Chart(pd.DataFrame({"y": [threshold]})).mark_rule(
         color="#ef4444", strokeDash=[5, 4]).encode(y="y:Q")
     st.altair_chart(line + rule, use_container_width=True)
-    st.caption("Dashed red line = underperformer threshold.")
+    st.caption("Blue line = average overall score per quarter · dashed red line = underperformer threshold.")
 else:
     st.info("Not enough dated orders to plot a trend.")
 

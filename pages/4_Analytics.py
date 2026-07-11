@@ -19,10 +19,13 @@ from lib.core import (
 )
 from lib.ui import breadcrumb, kpi_row
 
-# Consistent risk palette used across the app.
+# Chart palette — kept in sync with the risk colours used elsewhere so a
+# "High" supplier is the same red on every page.
 RISK_COLORS = {"High": "#ef4444", "Medium": "#f59e0b", "Low": "#10b981"}
 ACCENT = "#4f46e5"
 
+# Data sources: the scored board (one row per supplier) plus the raw orders and
+# ratings tables, which the monthly-trend section needs at order granularity.
 board = build_scoreboard()
 tables = load_tables()
 orders, ratings = tables["orders"], tables["ratings"]
@@ -152,7 +155,12 @@ st.altair_chart(
 )
 
 # --------------------------------------------------------------------------- #
-# Row 4: Monthly score trend (line) across the filtered portfolio
+# Row 4: Monthly score trend (line) across the filtered portfolio.
+#
+# Recomputes a per-order overall score month by month, using the SAME weights
+# and measured-metric conversions as build_scoreboard so the trend line is
+# consistent with the headline scores. Note price is scaled across this
+# selection's own orders (pmin/pmax), i.e. relative within the current view.
 # --------------------------------------------------------------------------- #
 st.subheader("Monthly score trend")
 ids = set(view["supplier_id"])

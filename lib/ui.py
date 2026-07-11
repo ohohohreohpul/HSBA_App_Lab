@@ -16,8 +16,19 @@ from lib.core import (
     risk_color,
 )
 
+# --------------------------------------------------------------------------- #
+# Global stylesheet.
+#
+# One big CSS string injected once per page (see inject_theme). It sets the
+# font, the colour palette (the :root variables every rule references), the
+# page background, then styles each recurring surface: KPI tiles, the hero
+# banner, risk badges, Streamlit's metric/dataframe/button widgets, the page
+# footer, and finally layout tweaks (hide sidebar, grey the Admin nav item).
+# Editing a --var here re-themes the whole app at once.
+# --------------------------------------------------------------------------- #
 _CSS = """
 <style>
+/* Font + colour tokens ---------------------------------------------------- */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 html, body, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif; }
@@ -31,6 +42,7 @@ html, body, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif; }
     --line: #e9ecf5;
 }
 
+/* Base page + text colours ------------------------------------------------ */
 .stApp { background: linear-gradient(160deg, #fbfbfe 0%, #f4f5fb 100%); }
 
 .stApp, .stApp p, .stApp span, .stApp label, .stApp li,
@@ -42,6 +54,8 @@ html, body, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif; }
 h1, h2, h3, h4 { color: var(--ink) !important; letter-spacing: -0.02em; }
 h1 { font-weight: 800 !important; }
 
+/* Page container: a full-height flex column so the footer can sink to the
+   bottom of short pages while long pages just scroll normally. */
 .main .block-container { padding-top: 2rem; max-width: 1280px;
     min-height: calc(100vh - 3rem); display: flex; flex-direction: column; }
 .main .block-container > div { width: 100%; }
@@ -125,7 +139,15 @@ header a[href*="Admin"]:hover { opacity: 1; }
 """
 
 
+# --------------------------------------------------------------------------- #
+# Reusable components.
+#
+# Small helpers each page calls so the look stays identical everywhere: the
+# theme injector, KPI tile rows, the coloured risk badge, the breadcrumb, and
+# the "how is this score calculated?" popover.
+# --------------------------------------------------------------------------- #
 def inject_theme() -> None:
+    """Inject the global stylesheet. Call once, early, on every page."""
     st.markdown(_CSS, unsafe_allow_html=True)
 
 

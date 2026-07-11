@@ -131,12 +131,11 @@ with tab_manage:
 
     st.divider()
     st.markdown("#### Delete supplier")
-    dcol1, dcol2 = st.columns([3, 1])
+    dcol1, dcol2 = st.columns([3, 1], vertical_alignment="bottom")
     with dcol1:
         to_del = st.selectbox("Select supplier to delete",
                               tables["suppliers"]["supplier_name"])
     with dcol2:
-        st.write("")
         if st.button("🗑 Delete", use_container_width=True):
             sup = tables["suppliers"]
             save_table("suppliers", sup[sup["supplier_name"] != to_del])
