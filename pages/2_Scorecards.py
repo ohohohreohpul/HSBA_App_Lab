@@ -183,7 +183,6 @@ def _open_drilldown() -> None:
             st.session_state["_go_drilldown"] = True
 
 
-st.info("Click **Open ▶** on a supplier's row to open its drilldown.", icon="💡")
 st.dataframe(
     styler, use_container_width=True, hide_index=True, height=440,
     key="scorecard_table",
@@ -201,20 +200,6 @@ st.dataframe(
 # so it sets a flag and we navigate here on the resulting rerun.
 if st.session_state.pop("_go_drilldown", False):
     st.switch_page("pages/3_Drilldown.py")
-
-# Alternative: a dropdown + button (keyboard-friendly).
-st.write("")
-st.markdown("**Or pick a supplier and open its drilldown**")
-jump_c1, jump_c2 = st.columns([3, 1], vertical_alignment="bottom")
-with jump_c1:
-    pick = st.selectbox(
-        "Open a supplier's drilldown", view["supplier_name"].tolist(),
-        label_visibility="collapsed",
-    )
-with jump_c2:
-    if st.button("Open drilldown →", type="primary", use_container_width=True):
-        st.session_state["drilldown_supplier"] = pick
-        st.switch_page("pages/3_Drilldown.py")
 
 # Flagged list for fast scanning.
 if n_under:

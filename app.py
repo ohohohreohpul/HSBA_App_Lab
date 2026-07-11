@@ -33,7 +33,7 @@ landing = st.Page("pages/1_Landing.py", title="Home", icon="🏠", default=True)
 scorecards = st.Page("pages/2_Scorecards.py", title="Scorecards", icon="📋")
 drilldown = st.Page("pages/3_Drilldown.py", title="Drilldown", icon="🔎")
 analytics = st.Page("pages/4_Analytics.py", title="Analytics", icon="📈")
-admin = st.Page("pages/5_Admin.py", title="Admin", icon="🔐")
+admin = st.Page("pages/5_Admin.py", title="Admin")
 
 pages = [landing, scorecards, drilldown, analytics, admin]
 

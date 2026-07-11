@@ -44,8 +44,10 @@ h1 { font-weight: 800 !important; }
 
 .main .block-container { padding-top: 2rem; max-width: 1280px;
     min-height: calc(100vh - 3rem); display: flex; flex-direction: column; }
-/* Push the footer to the very bottom of the page */
-.main .block-container > div:has(.app-footer) { margin-top: auto; animation: none; }
+.main .block-container > div { width: 100%; }
+/* Push the footer to the very bottom of the page, full width & centered */
+.main .block-container > div:has(.app-footer) {
+    margin-top: auto; width: 100%; animation: none; }
 .main .block-container > div { animation: fadeInUp 0.45s ease both; }
 
 /* KPI tiles */
@@ -60,6 +62,7 @@ h1 { font-weight: 800 !important; }
 /* Hero */
 .hero { background:linear-gradient(135deg,var(--accent),var(--accent-2)); border-radius:22px;
         padding:40px 44px; color:#fff; box-shadow:0 18px 44px rgba(79,70,229,.28); }
+.hero, .hero * { color:#fff !important; }
 .hero h1 { color:#fff !important; margin:0 0 8px; font-size:2.4rem; }
 .hero p  { color:rgba(255,255,255,.92) !important; font-size:1.06rem; max-width:640px; margin:0; }
 
@@ -81,9 +84,12 @@ h1 { font-weight: 800 !important; }
 hr { margin:1.4rem 0; opacity:.5; }
 
 /* Page footer */
-.app-footer { margin-top:40px; padding:22px 0 10px; border-top:1px solid var(--line);
-              text-align:center; color:var(--muted); font-size:.85rem; line-height:1.5; }
+.app-footer { display:block; width:100%; margin:40px auto 0; padding:22px 0 10px;
+              border-top:1px solid var(--line); text-align:center !important;
+              color:var(--muted); font-size:.85rem; line-height:1.5; }
 .app-footer strong { color:var(--accent); font-weight:600; }
+/* Ensure Streamlit's markdown wrapper around the footer stretches full width */
+[data-testid="stMarkdownContainer"]:has(.app-footer) { width:100%; text-align:center; }
 
 @keyframes fadeInUp { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
 
