@@ -14,16 +14,19 @@ rules and styling stay consistent across the whole app.
 
 import streamlit as st
 
-from lib.ui import inject_theme
+from lib.ui import inject_theme, render_admin_sidebar
 from lib.admin import is_admin
 
 st.set_page_config(
     page_title="Supplier Scorecard",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 inject_theme()
+
+# Left-sidebar admin control (on every page): activate admin mode / manage data.
+render_admin_sidebar()
 
 # --------------------------------------------------------------------------- #
 # Admin is "hidden": it only enters the top nav after authentication. Until

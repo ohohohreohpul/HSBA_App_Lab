@@ -78,8 +78,9 @@ Search tolerates typos and partial names (e.g. `shezen micro` finds
 
 ## Admin mode (hidden)
 
-Admin mode is **not shown in the navigation**. Reach it via the discreet dot in
-the Landing-page footer, then enter the code **`0000`**.
+Admin mode is **not shown in the top navigation**. Open the **left sidebar** and
+click **"Activate admin mode"**, then enter the code **`0000`**. Once unlocked,
+the sidebar shows an admin badge with shortcuts to data management and log-out.
 
 > ⚠️ **This gate is a showcase, not security.** It exists purely to demonstrate
 > a role-gated back-office UI. The code just flips a session flag and is visible

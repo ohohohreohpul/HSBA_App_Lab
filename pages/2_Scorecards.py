@@ -1,10 +1,7 @@
-"""Scorecards — the primary working page: filter, search, scan, export."""
+"""Scorecards — the primary working page: filter, search, scan."""
 
 from __future__ import annotations
 
-import io
-
-import pandas as pd
 import streamlit as st
 
 from lib.core import (
@@ -15,7 +12,7 @@ from lib.core import (
     build_scoreboard,
     suggest_names,
 )
-from lib.ui import breadcrumb, kpi_row, risk_badge_html, score_info_popover
+from lib.ui import breadcrumb, risk_badge_html, score_info_popover
 
 board = build_scoreboard()
 names = board["supplier_name"].tolist()
@@ -73,21 +70,30 @@ search = picked if picked else typed
 # Filters — update results instantly (Streamlit reruns on any change)
 # --------------------------------------------------------------------------- #
 with st.expander("Filters", expanded=True):
-    f1, f2, f3 = st.columns(3)
-    with f1:
-        countries = st.multiselect("Country", sorted(board["country"].dropna().unique()))
-        categories = st.multiselect("Category", sorted(board["category_name"].dropna().unique()))
-    with f2:
-        risk_levels = st.multiselect("Risk level", ["High", "Medium", "Low"])
-        threshold = st.slider("Underperformer threshold", 1.0, 5.0, DEFAULT_THRESHOLD, 0.1)
-    with f3:
-        score_range = st.slider("Score range", 1.0, 5.0, (1.0, 5.0), 0.1)
-        only_missing = st.checkbox("Only missing data")
-        only_low_conf = st.checkbox("Only low-confidence (few ratings)")
-        only_under = st.checkbox("Only below threshold")
+    # Row 1 — attribute filters (what to include)
+    st.markdown("**Attributes**")
+    a1, a2, a3 = st.columns(3)
+    countries = a1.multiselect("Country", sorted(board["country"].dropna().unique()))
+    categories = a2.multiselect("Category", sorted(board["category_name"].dropna().unique()))
+    risk_levels = a3.multiselect("Risk level", ["High", "Medium", "Low"])
+
+    # Row 2 — score-based filters (ranges)
+    st.markdown("**Score**")
+    s1, s2 = st.columns(2)
+    score_range = s1.slider("Score range", 1.0, 5.0, (1.0, 5.0), 0.1)
+    threshold = s2.slider("Underperformer threshold", 1.0, 5.0, DEFAULT_THRESHOLD, 0.1)
+
+    # Row 3 — quick toggles (data quality / shortcuts)
+    st.markdown("**Quick filters**")
+    q1, q2, q3 = st.columns(3)
+    only_under = q1.checkbox("Only below threshold")
+    only_missing = q2.checkbox("Only missing data")
+    only_low_conf = q3.checkbox("Only low-confidence (few ratings)")
 
 filters = {
-    "search": search,
+    # A picked suggestion is an exact name, so don't fuzzy-match it; the exact
+    # filter below handles it. Only pass the raw typed text to fuzzy search.
+    "search": "" if picked else typed,
     "countries": countries,
     "categories": categories,
     "risk_levels": risk_levels,
@@ -97,25 +103,21 @@ filters = {
     "only_underperformers": only_under,
     "threshold": threshold,
 }
-view = apply_filters(board, filters).sort_values("overall_score", ascending=False)
+view = apply_filters(board, filters)
+if picked:
+    # Selected a specific company → show exactly that supplier.
+    view = view[view["supplier_name"] == picked]
+view = view.sort_values("overall_score", ascending=False)
 
-# --------------------------------------------------------------------------- #
-# Summary KPIs for the current filtered set
-# --------------------------------------------------------------------------- #
+# Count below-threshold suppliers (used by the flagged-list expander below).
 n_under = int((view["overall_score"] < threshold).sum())
-kpi_row([
-    {"label": "In view", "value": len(view), "sub": f"of {len(board)} total"},
-    {"label": "Avg. score", "value": f"{view['overall_score'].mean():.2f}" if len(view) else "—"},
-    {"label": "Below threshold", "value": n_under, "sub": f"< {threshold:.1f}"},
-    {"label": "High risk", "value": int((view['risk_level'] == 'High').sum())},
-])
 
 if view.empty:
     st.warning("No suppliers match the current filters. Try clearing some.")
     st.stop()
 
 # --------------------------------------------------------------------------- #
-# Column visibility + export controls
+# Table columns
 # --------------------------------------------------------------------------- #
 all_cols = {
     "supplier_name": "Supplier",
@@ -128,60 +130,18 @@ all_cols = {
     "total_spend": "Spend (€)",
     "num_ratings": "Ratings",
 }
-ctrl1, ctrl2, ctrl3 = st.columns([3, 1, 1])
-with ctrl1:
-    default_visible = ["supplier_name", "country", "category_name", "overall_score",
-                       "risk_level", "num_orders", "total_spend"]
-    visible = st.multiselect(
-        "Columns", list(all_cols.keys()),
-        default=default_visible,
-        format_func=lambda c: all_cols[c],
-        label_visibility="collapsed",
-    )
-if not visible:
-    visible = default_visible
+visible = ["supplier_name", "country", "category_name", "overall_score",
+           "risk_level", "num_orders", "total_spend"]
 
-# Export current (filtered) view.
-export_df = view[["supplier_name", "country", "category_name", *CRITERIA,
-                  "overall_score", "risk_level", "num_orders", "total_spend",
-                  "num_ratings"]].rename(columns=all_cols)
-with ctrl2:
-    st.download_button(
-        "⬇ CSV", export_df.to_csv(index=False).encode(),
-        "suppliers.csv", "text/csv", use_container_width=True,
-    )
-with ctrl3:
-    xbuf = io.BytesIO()
-    with pd.ExcelWriter(xbuf, engine="openpyxl") as xw:
-        export_df.to_excel(xw, index=False, sheet_name="Suppliers")
-    st.download_button(
-        "⬇ Excel", xbuf.getvalue(), "suppliers.xlsx",
-        "application/vnd.openpyxl", use_container_width=True,
-    )
+st.caption("🔴 red = below threshold · low-confidence rows marked ⚠")
 
 # --------------------------------------------------------------------------- #
-# Pagination
+# The scorecard table — all suppliers in the filtered view, sortable, with
+# conditional risk formatting. st.dataframe gives native per-column sort + a
+# sticky header, and scrolls internally within its fixed height, so every row
+# is reachable without paging.
 # --------------------------------------------------------------------------- #
-p1, p2, _ = st.columns([1, 1, 4])
-with p1:
-    page_size = st.selectbox("Rows / page", [10, 25, 50, 100], index=1)
-n_pages = max(1, (len(view) + page_size - 1) // page_size)
-with p2:
-    page = st.number_input("Page", 1, n_pages, 1, step=1)
-start = (page - 1) * page_size
-page_df = view.iloc[start:start + page_size].copy()
-
-st.caption(
-    f"Showing {start + 1}–{min(start + page_size, len(view))} of {len(view)} · "
-    "🔴 red = below threshold · low-confidence rows marked ⚠"
-)
-
-# --------------------------------------------------------------------------- #
-# The scorecard table — sortable, with conditional risk formatting.
-# st.dataframe gives native per-column sort + sticky header. We style the
-# overall-score column by risk so problem rows are impossible to miss.
-# --------------------------------------------------------------------------- #
-display = page_df.copy()
+display = view.copy()
 display["Supplier"] = display.apply(
     lambda r: f"⚠ {r['supplier_name']}" if r["low_confidence"] else r["supplier_name"], axis=1
 )
@@ -210,15 +170,32 @@ styler = table.style.apply(_risk_style, axis=1).format(
     | ({"Spend (€)": "€{:,.0f}"} if "Spend (€)" in table.columns else {})
 )
 
-st.dataframe(styler, use_container_width=True, hide_index=True, height=440)
+st.caption("💡 Click any row to open that supplier's drilldown.")
+event = st.dataframe(
+    styler, use_container_width=True, hide_index=True, height=440,
+    on_select="rerun", selection_mode="single-row", key="scorecard_table",
+)
 
-# Quick jump to drilldown for any supplier in the current page.
+# Clicking a row selects that supplier and jumps straight to the drilldown.
+# The table rows are in the same order as `view`, so the selected row position
+# maps directly back to a supplier name.
+selected_rows = event.selection.get("rows", []) if event and event.selection else []
+if selected_rows:
+    pos = selected_rows[0]
+    if 0 <= pos < len(view):
+        st.session_state["drilldown_supplier"] = view.iloc[pos]["supplier_name"]
+        st.switch_page("pages/3_Drilldown.py")
+
+# Fallback: a dropdown + button for keyboard users / when a row isn't clicked.
 st.write("")
-jump_c1, jump_c2 = st.columns([3, 1])
+st.markdown("**Or pick a supplier and open its drilldown**")
+jump_c1, jump_c2 = st.columns([3, 1], vertical_alignment="bottom")
 with jump_c1:
-    pick = st.selectbox("Open a supplier's drilldown", page_df["supplier_name"].tolist())
+    pick = st.selectbox(
+        "Open a supplier's drilldown", view["supplier_name"].tolist(),
+        label_visibility="collapsed",
+    )
 with jump_c2:
-    st.write("")
     if st.button("Open drilldown →", type="primary", use_container_width=True):
         st.session_state["drilldown_supplier"] = pick
         st.switch_page("pages/3_Drilldown.py")
