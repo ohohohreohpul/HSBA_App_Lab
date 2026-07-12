@@ -78,6 +78,15 @@ with st.expander("Filters", expanded=True):
     categories = a2.multiselect("Category", sorted(board["category_name"].dropna().unique()))
     risk_levels = a3.multiselect("Risk level", ["High", "Medium", "Low"])
 
+    # Total-spend range (€). Bounds come from the data so the slider always spans
+    # the real min..max; default selection is the full range (no filtering).
+    spend_lo = int(board["total_spend"].min())
+    spend_hi = int(board["total_spend"].max()) + 1
+    spend_range = st.slider(
+        "Total spend (€)", spend_lo, spend_hi, (spend_lo, spend_hi), step=1000,
+        format="€%d",
+    )
+
     # Row 2 — score-based filters (ranges)
     st.markdown("**Score**")
     s1, s2 = st.columns(2)
@@ -101,6 +110,7 @@ filters = {
     "categories": categories,
     "risk_levels": risk_levels,
     "score_range": score_range,
+    "spend_range": spend_range,
     "only_low_confidence": only_low_conf,
     "only_high_confidence": only_high_conf,
     "only_underperformers": only_under,

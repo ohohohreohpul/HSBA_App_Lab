@@ -335,6 +335,9 @@ def apply_filters(board: pd.DataFrame, f: dict) -> pd.DataFrame:
     if f.get("score_range"):
         lo, hi = f["score_range"]
         v = v[(v["overall_score"] >= lo) & (v["overall_score"] <= hi)]
+    if f.get("spend_range"):
+        lo, hi = f["spend_range"]
+        v = v[(v["total_spend"] >= lo) & (v["total_spend"] <= hi)]
     if f.get("only_missing"):
         v = v[v["has_missing_data"]]
     if f.get("only_low_confidence"):
