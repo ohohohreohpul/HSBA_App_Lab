@@ -42,16 +42,17 @@ n = len(board)
 avg = board["overall_score"].mean()
 high_risk = int((board["risk_level"] == "High").sum())
 countries = board["country"].nunique()
-# Unfinished orders: still open (cancelled / in transit), so no delivery has
-# completed yet. Counted at ORDER level to match the label, not per supplier.
-unfinished = int(orders["delivery_date"].isna().sum())
+# Unfinished orders, split by status (order-level counts, live from the data).
+cancelled = int((orders["status"] == "Cancelled").sum())
+in_transit = int((orders["status"] == "In Transit").sum())
 
 st.subheader("At a glance")
 kpi_row([
     {"label": "Suppliers", "value": n, "sub": f"{countries} countries"},
     {"label": "Avg. score", "value": f"{avg:.2f}", "sub": "weighted, 1–5"},
-    {"label": "High risk", "value": high_risk, "sub": "< 2.5 overall"},
-    {"label": "Unfinished deliveries", "value": unfinished, "sub": "cancelled / in transit"},
+    {"label": "High risk suppliers", "value": high_risk, "sub": "< 2.5 overall"},
+    {"label": "Cancelled", "value": cancelled, "sub": "orders"},
+    {"label": "In transit", "value": in_transit, "sub": "orders"},
 ])
 
 st.write("")
