@@ -50,7 +50,7 @@ kpi_row([
     {"label": "Suppliers", "value": n, "sub": f"{countries} countries"},
     {"label": "Avg. score", "value": f"{avg:.2f}", "sub": "weighted, 1–5"},
     {"label": "High risk", "value": high_risk, "sub": "< 2.5 overall"},
-    {"label": "Unfinished deliveries", "value": unfinished, "sub": "no completed order yet"},
+    {"label": "Unfinished deliveries", "value": unfinished, "sub": ""},
 ])
 
 st.write("")

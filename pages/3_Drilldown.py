@@ -54,7 +54,7 @@ st.title(supplier)
 meta_l, meta_r = st.columns([3, 2])
 with meta_l:
     st.markdown(
-        f"{risk_badge_html(row['risk_level'])} &nbsp; "
+        f"{risk_badge_html(row['risk_level'], prefix='Risk:')} &nbsp; "
         f"{confidence_badge_html(bool(row['low_confidence']), int(row['num_ratings']))} &nbsp; "
         f"**{row['country']}** · {row['category_name']} · "
         f"✉ {row['contact_email']}",

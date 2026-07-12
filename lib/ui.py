@@ -92,8 +92,10 @@ h1 { font-weight: 800 !important; }
 [data-testid="stDataFrame"] { border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(16,24,40,.06); }
 
 .stButton > button { border-radius:10px; border:1px solid var(--accent); font-weight:600; transition:all .18s ease; }
-.stButton > button:hover { background:var(--accent); color:#fff; transform:translateY(-1px); }
-.stButton > button[kind="primary"] { background:var(--accent); color:#fff; }
+.stButton > button:hover { background:var(--accent); }
+.stButton > button:hover, .stButton > button:hover * { color:#fff !important; }
+.stButton > button[kind="primary"] { background:var(--accent); }
+.stButton > button[kind="primary"], .stButton > button[kind="primary"] * { color:#fff !important; }
 
 hr { margin:1.4rem 0; opacity:.5; }
 
@@ -163,25 +165,28 @@ def kpi_row(items: list[dict]) -> None:
     st.markdown(f'<div class="kpi-grid">{cells}</div>', unsafe_allow_html=True)
 
 
-def risk_badge_html(level: str) -> str:
+def risk_badge_html(level: str, prefix: str = "") -> str:
+    """Coloured risk pill. `prefix` (e.g. "Risk:") is prepended for places that
+    need the label spelled out rather than just the level word."""
     color = risk_color(level)
+    text = f"{prefix} {level}".strip()
     return (
         f'<span class="badge" style="background:{color}1a;color:{color};">'
-        f'● {level}</span>'
+        f'● {text}</span>'
     )
 
 
 def confidence_badge_html(low_confidence: bool, num_ratings: int | None = None) -> str:
-    """Coloured pill for data confidence: amber "Low confidence" when a supplier
-    has too few ratings to trust the score, green "Confidence OK" otherwise."""
+    """Coloured pill for data confidence: amber "Confidence: Low" when a supplier
+    has too few ratings to trust the score, green "Confidence: OK" otherwise."""
     if low_confidence:
         color = "#d97706"  # amber
-        text = "Low confidence"
+        text = "Confidence: Low"
         if num_ratings is not None:
             text += f" ({num_ratings} rating{'s' if num_ratings != 1 else ''})"
     else:
         color = "#10b981"  # green
-        text = "Confidence OK"
+        text = "Confidence: OK"
     return (
         f'<span class="badge" style="background:{color}1a;color:{color};">'
         f'● {text}</span>'

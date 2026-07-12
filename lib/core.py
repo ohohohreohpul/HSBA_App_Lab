@@ -339,8 +339,12 @@ def apply_filters(board: pd.DataFrame, f: dict) -> pd.DataFrame:
         v = v[v["has_missing_data"]]
     if f.get("only_low_confidence"):
         v = v[v["low_confidence"]]
+    if f.get("only_high_confidence"):
+        v = v[~v["low_confidence"]]
     if f.get("threshold") is not None and f.get("only_underperformers"):
         v = v[v["overall_score"] < f["threshold"]]
+    if f.get("threshold") is not None and f.get("only_above_threshold"):
+        v = v[v["overall_score"] >= f["threshold"]]
     return v
 
 
@@ -407,29 +411,104 @@ def run_data_checks() -> list[dict]:
         "detail": ", ".join(bad_cat["supplier_name"].head(10)) or "None",
     })
 
-    # Out-of-range ratings (not 1..5).
+    # Broken references: ratings pointing at unknown suppliers.
+    orphan_ratings = set(ratings["supplier_id"]) - set(suppliers["supplier_id"])
+    findings.append({
+        "id": "orphan_ratings",
+        "title": "Ratings referencing unknown suppliers",
+        "count": len(orphan_ratings),
+        "severity": "error" if orphan_ratings else "ok",
+        "detail": ", ".join(map(str, sorted(orphan_ratings))) or "None",
+    })
+
+    # Ratings whose order_id doesn't exist in the orders table.
+    ratings_bad_order = ratings[~ratings["order_id"].isin(orders["order_id"])]
+    findings.append({
+        "id": "ratings_bad_order",
+        "title": "Ratings referencing unknown orders",
+        "count": len(ratings_bad_order),
+        "severity": "error" if len(ratings_bad_order) else "ok",
+        "detail": ", ".join(map(str, ratings_bad_order["rating_id"].head(10))) or "None",
+    })
+
+    # Out-of-range ratings (not 1..5). Only the criteria actually sourced from
+    # ratings.csv are scored now (quality, communication) — delivery_time and
+    # price are derived from measured order data, so we don't validate those
+    # (legacy) columns here.
     bad_rating_mask = pd.Series(False, index=ratings.index)
-    for c in CRITERIA:
+    for c in sorted(RATING_CRITERIA):
         if c in ratings:
             bad_rating_mask |= ~ratings[c].between(1, 5)
     findings.append({
         "id": "bad_ratings",
-        "title": "Ratings outside the 1–5 range",
+        "title": "Quality/communication ratings outside the 1–5 range",
         "count": int(bad_rating_mask.sum()),
         "severity": "error" if bad_rating_mask.any() else "ok",
         "detail": ", ".join(map(str, ratings[bad_rating_mask]["rating_id"].head(10))) or "None",
     })
 
-    # Low-confidence suppliers (few ratings).
-    counts = ratings.groupby("supplier_id").size()
-    low_conf = counts[counts < MIN_RATINGS_FOR_CONFIDENCE]
+    # Orders with a missing order date (can't be placed on the timeline / trend).
+    miss_order_date = orders[orders["order_date"].isna()]
+    findings.append({
+        "id": "missing_order_date",
+        "title": "Orders with no order date",
+        "count": len(miss_order_date),
+        "severity": "error" if len(miss_order_date) else "ok",
+        "detail": ", ".join(map(str, miss_order_date["order_id"].head(10))) or "None",
+    })
+
+    # Orders with a non-positive amount (0 or negative € makes no business sense
+    # and would distort the price scoring / spend totals).
+    bad_amount = orders[~(orders["amount_eur"] > 0)]
+    findings.append({
+        "id": "bad_amount",
+        "title": "Orders with zero or negative amount",
+        "count": len(bad_amount),
+        "severity": "error" if len(bad_amount) else "ok",
+        "detail": ", ".join(map(str, bad_amount["order_id"].head(10))) or "None",
+    })
+
+    # Delivery date earlier than the order date (impossible — negative lead time).
+    if "delivery_days" in orders:
+        neg_lead = orders[orders["delivery_days"] < 0]
+        findings.append({
+            "id": "negative_lead_time",
+            "title": "Orders delivered before they were ordered",
+            "count": len(neg_lead),
+            "severity": "error" if len(neg_lead) else "ok",
+            "detail": ", ".join(map(str, neg_lead["order_id"].head(10))) or "None",
+        })
+
+    # Unfinished deliveries: orders still open (cancelled / in transit) with no
+    # completed delivery. Informational — a normal business state, not an error,
+    # but worth surfacing (mirrors the "Unfinished deliveries" KPI on the home
+    # page and the missing_delivery_data flag on the scoreboard).
+    unfinished = orders[orders["delivery_date"].isna()]
+    findings.append({
+        "id": "unfinished_deliveries",
+        "title": "Orders with no delivery yet (cancelled / in transit)",
+        "count": len(unfinished),
+        "severity": "info" if len(unfinished) else "ok",
+        "detail": ", ".join(map(str, unfinished["order_id"].head(10))) or "None",
+    })
+
+    # Low-confidence suppliers: fewer than MIN_RATINGS_FOR_CONFIDENCE rated
+    # orders. Counted per supplier (reindexed over all suppliers, so a supplier
+    # with zero ratings counts as 0) — this matches the `low_confidence` flag in
+    # build_scoreboard and the "Confidence" column shown on the Scorecards page,
+    # so the Admin count can never disagree with what the user sees there.
+    rating_counts = (
+        ratings.groupby("supplier_id").size()
+        .reindex(suppliers["supplier_id"], fill_value=0)
+    )
+    low_conf_ids = rating_counts[rating_counts < MIN_RATINGS_FOR_CONFIDENCE].index
     findings.append({
         "id": "low_confidence",
-        "title": f"Suppliers with < {MIN_RATINGS_FOR_CONFIDENCE} ratings (low confidence)",
-        "count": len(low_conf),
-        "severity": "info" if len(low_conf) else "ok",
+        "title": f"Low-confidence suppliers (< {MIN_RATINGS_FOR_CONFIDENCE} rated orders)",
+        "count": len(low_conf_ids),
+        "severity": "info" if len(low_conf_ids) else "ok",
         "detail": ", ".join(
-            suppliers[suppliers["supplier_id"].isin(low_conf.index)]["supplier_name"].head(10)
+            suppliers[suppliers["supplier_id"].isin(low_conf_ids)]["supplier_name"].head(10)
         ) or "None",
     })
 

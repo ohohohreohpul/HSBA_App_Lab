@@ -84,12 +84,14 @@ with st.expander("Filters", expanded=True):
     score_range = s1.slider("Score range", 1.0, 5.0, (1.0, 5.0), 0.1)
     threshold = s2.slider("Underperformer threshold", 1.0, 5.0, DEFAULT_THRESHOLD, 0.1)
 
-    # Row 3 — quick toggles (data quality / shortcuts)
+    # Row 3 — quick toggles (data quality / shortcuts), paired opposites.
     st.markdown("**Quick filters**")
-    q1, q2, q3 = st.columns(3)
+    q1, q2 = st.columns(2)
     only_under = q1.checkbox("Only below threshold")
-    only_missing = q2.checkbox("Only missing data")
+    only_above = q2.checkbox("Only above threshold")
+    q3, q4 = st.columns(2)
     only_low_conf = q3.checkbox("Only low-confidence (few ratings)")
+    only_high_conf = q4.checkbox("Only high-confidence (enough ratings)")
 
 filters = {
     # A picked suggestion is an exact name, so don't fuzzy-match it; the exact
@@ -99,9 +101,10 @@ filters = {
     "categories": categories,
     "risk_levels": risk_levels,
     "score_range": score_range,
-    "only_missing": only_missing,
     "only_low_confidence": only_low_conf,
+    "only_high_confidence": only_high_conf,
     "only_underperformers": only_under,
+    "only_above_threshold": only_above,
     "threshold": threshold,
 }
 view = apply_filters(board, filters)
@@ -129,7 +132,7 @@ all_cols = {
     "risk_level": "Risk",
     "confidence": "Confidence",
     "num_orders": "Orders",
-    "total_spend": "Spend (€)",
+    "total_spend": "Total spend (€)",
     "num_ratings": "Ratings",
 }
 visible = ["supplier_name", "country", "category_name", "overall_score",
@@ -154,7 +157,7 @@ display["Select for drilldown"] = ":material/arrow_forward: Open"
 display = display.rename(columns={
     "country": "Country", "category_name": "Category",
     "overall_score": "Overall", "risk_level": "Risk",
-    "num_orders": "Orders", "total_spend": "Spend (€)", "num_ratings": "Ratings",
+    "num_orders": "Orders", "total_spend": "Total spend (€)", "num_ratings": "Ratings",
     **CRITERIA_LABELS,
 })
 ordered = ["Select for drilldown", "Supplier"] + [all_cols[c] for c in visible if c != "supplier_name"]
@@ -175,7 +178,7 @@ def _risk_style(row):
 
 styler = table.style.apply(_risk_style, axis=1).format(
     {c: "{:.2f}" for c in ["Overall", *CRITERIA_LABELS.values()] if c in table.columns}
-    | ({"Spend (€)": "€{:,.0f}"} if "Spend (€)" in table.columns else {})
+    | ({"Total spend (€)": "€{:,.0f}"} if "Total spend (€)" in table.columns else {})
 )
 
 

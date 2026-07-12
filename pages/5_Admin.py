@@ -33,11 +33,6 @@ if not is_admin():
             st.rerun()
         else:
             st.error("Incorrect access code.")
-    st.info(
-        "This gate is a **showcase, not security** — the code is `0000`. "
-        "It just unlocks the back-office UI to demonstrate role-gated access.",
-        icon="ℹ️",
-    )
     st.stop()
 
 # --------------------------------------------------------------------------- #
@@ -147,8 +142,9 @@ with tab_manage:
 # TAB 2 — Integrity checks with one-click fixes
 # =========================================================================== #
 with tab_checks:
-    st.caption("Automated scan for missing values, duplicates, broken references, "
-               "invalid ratings and outdated/low-confidence data.")
+    st.caption("Automated scan for missing values, duplicates, broken references "
+               "(orders & ratings), out-of-range ratings, invalid amounts/dates, "
+               "and unfinished/low-confidence data.")
     if st.button("🔄 Re-run checks", type="primary"):
         st.rerun()
 
@@ -173,13 +169,32 @@ with tab_checks:
                         valid = set(t["suppliers"]["supplier_id"])
                         save_table("orders", t["orders"][t["orders"]["supplier_id"].isin(valid)])
                         st.rerun()
+                elif f["id"] == "orphan_ratings" and f["count"]:
+                    if st.button("Fix", key="fix_orphan_ratings", use_container_width=True):
+                        t = load_tables()
+                        valid = set(t["suppliers"]["supplier_id"])
+                        save_table("ratings", t["ratings"][t["ratings"]["supplier_id"].isin(valid)])
+                        st.rerun()
+                elif f["id"] == "ratings_bad_order" and f["count"]:
+                    if st.button("Fix", key="fix_ratings_order", use_container_width=True):
+                        t = load_tables()
+                        valid = set(t["orders"]["order_id"])
+                        save_table("ratings", t["ratings"][t["ratings"]["order_id"].isin(valid)])
+                        st.rerun()
                 elif f["id"] == "bad_ratings" and f["count"]:
                     if st.button("Fix", key="fix_ratings", use_container_width=True):
                         t = load_tables()
                         r = t["ratings"].copy()
-                        for c in ["delivery_time", "quality", "price", "communication"]:
+                        # Only the criteria actually scored are validated/clipped.
+                        for c in ["quality", "communication"]:
                             r[c] = r[c].clip(1, 5)
                         save_table("ratings", r)
+                        st.rerun()
+                elif f["id"] == "bad_amount" and f["count"]:
+                    if st.button("Fix", key="fix_amount", use_container_width=True):
+                        t = load_tables()
+                        o = t["orders"]
+                        save_table("orders", o[o["amount_eur"] > 0])
                         st.rerun()
                 elif f["id"] == "duplicate_names" and f["count"]:
                     if st.button("Fix", key="fix_dups", use_container_width=True):
