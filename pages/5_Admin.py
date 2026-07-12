@@ -9,6 +9,7 @@ import streamlit as st
 
 from lib.admin import is_admin, logout, try_login
 from lib.core import (
+    _DERIVED_COLS,
     load_tables,
     next_id,
     run_data_checks,
@@ -58,7 +59,16 @@ tab_manage, tab_checks, tab_bulk = st.tabs(
 # =========================================================================== #
 with tab_manage:
     which = st.selectbox("Table", list(tables.keys()), index=1)  # suppliers default
-    df = tables[which].copy().reset_index(drop=True)
+    # Hide derived columns (e.g. orders.delivery_days) from the editor: they're
+    # computed at load time and stripped again on save, so editing them does
+    # nothing. Dropping them here keeps the editor's row-index math aligned with
+    # what actually gets written.
+    df = (
+        tables[which]
+        .drop(columns=[c for c in _DERIVED_COLS if c in tables[which].columns])
+        .copy()
+        .reset_index(drop=True)
+    )
     editor_key = f"editor_{which}"
 
     def _apply_edits(source: pd.DataFrame, key: str) -> pd.DataFrame:
