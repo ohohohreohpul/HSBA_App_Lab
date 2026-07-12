@@ -17,8 +17,9 @@ from lib.core import (
     load_tables,
     risk_color,
     suggest_names,
+    weighted_overall,
 )
-from lib.ui import breadcrumb, risk_badge_html, score_info_popover
+from lib.ui import breadcrumb, confidence_badge_html, risk_badge_html, score_info_popover
 
 board = build_scoreboard()
 tables = load_tables()
@@ -54,12 +55,16 @@ meta_l, meta_r = st.columns([3, 2])
 with meta_l:
     st.markdown(
         f"{risk_badge_html(row['risk_level'])} &nbsp; "
+        f"{confidence_badge_html(bool(row['low_confidence']), int(row['num_ratings']))} &nbsp; "
         f"**{row['country']}** · {row['category_name']} · "
         f"✉ {row['contact_email']}",
         unsafe_allow_html=True,
     )
     if row["low_confidence"]:
-        st.warning(f"⚠ Low confidence — only {int(row['num_ratings'])} rated order(s).")
+        st.warning(
+            f"⚠ **Low confidence** — this score is based on only "
+            f"{int(row['num_ratings'])} rated order(s), so treat it with caution."
+        )
 with meta_r:
     score_info_popover("drill")
 
@@ -124,8 +129,9 @@ with left:
                 help=help_txt + f" Weight in overall: {CRITERIA_WEIGHTS[crit]*100:.0f}%.",
             )
     if row.get("missing_delivery_data", False):
-        st.caption("⚠ No delivered orders yet — delivery time is unmeasured "
-                   "(scored neutral 3.0).")
+        st.caption("ℹ No delivered orders yet — there is no delivery history to "
+                   "measure, so delivery time is **excluded** from the overall "
+                   "score. The remaining criteria are re-weighted to fill the gap.")
 
 with right:
     st.subheader("Threshold violations")
@@ -168,13 +174,16 @@ if sup_ratings["order_date"].notna().any():
     sup_ratings = sup_ratings.dropna(subset=["order_date"]).copy()
     # Per-order price score, scaled across this supplier's own orders.
     pmin, pmax = sup_ratings["amount_eur"].min(), sup_ratings["amount_eur"].max()
+    # No measured delivery days for an order → no delivery info, so it is
+    # excluded from that order's overall (weights re-normalised), matching the
+    # scoreboard logic instead of injecting a neutral score.
     sup_ratings["delivery_time"] = sup_ratings["delivery_days"].apply(
-        lambda d: 3.0 if pd.isna(d) else delivery_days_to_score(d)
+        lambda d: float("nan") if pd.isna(d) else delivery_days_to_score(d)
     )
     sup_ratings["price"] = sup_ratings["amount_eur"].apply(
         lambda v: _linear_score(v, best=pmin, worst=pmax)
     )
-    sup_ratings["overall"] = sum(sup_ratings[c] * CRITERIA_WEIGHTS[c] for c in CRITERIA)
+    sup_ratings["overall"] = sup_ratings.apply(weighted_overall, axis=1)
     period = sup_ratings["order_date"].dt.to_period("Q")
     sup_ratings["period"] = period.dt.start_time
     # Human-readable quarter label, e.g. "Q2 2025".

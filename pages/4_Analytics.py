@@ -9,13 +9,9 @@ import streamlit as st
 from lib.core import (
     CRITERIA,
     CRITERIA_LABELS,
-    CRITERIA_WEIGHTS,
     DEFAULT_THRESHOLD,
-    _linear_score,
     apply_filters,
     build_scoreboard,
-    delivery_days_to_score,
-    load_tables,
 )
 from lib.ui import breadcrumb, kpi_row
 
@@ -24,11 +20,8 @@ from lib.ui import breadcrumb, kpi_row
 RISK_COLORS = {"High": "#ef4444", "Medium": "#f59e0b", "Low": "#10b981"}
 ACCENT = "#4f46e5"
 
-# Data sources: the scored board (one row per supplier) plus the raw orders and
-# ratings tables, which the monthly-trend section needs at order granularity.
+# Data source: the scored board — one row per supplier.
 board = build_scoreboard()
-tables = load_tables()
-orders, ratings = tables["orders"], tables["ratings"]
 
 breadcrumb("Home", "Analytics")
 st.title("Analytics")
@@ -137,6 +130,12 @@ with r2c2:
 # Row 3: Heatmap — avg criterion score by category
 # --------------------------------------------------------------------------- #
 st.subheader("Category × criterion heatmap")
+st.caption(
+    "Each cell is that **category's average score for one criterion**. "
+    "Green = strong, red = weak — so you can spot which category lags on a "
+    "specific area (e.g. weak on Delivery Time but strong on Quality) and target "
+    "improvement there."
+)
 heat_src = view.melt(
     id_vars="category_name", value_vars=CRITERIA,
     var_name="criterion", value_name="score",
@@ -153,41 +152,3 @@ st.altair_chart(
     ).properties(height=260),
     use_container_width=True,
 )
-
-# --------------------------------------------------------------------------- #
-# Row 4: Monthly score trend (line) across the filtered portfolio.
-#
-# Recomputes a per-order overall score month by month, using the SAME weights
-# and measured-metric conversions as build_scoreboard so the trend line is
-# consistent with the headline scores. Note price is scaled across this
-# selection's own orders (pmin/pmax), i.e. relative within the current view.
-# --------------------------------------------------------------------------- #
-st.subheader("Monthly score trend")
-ids = set(view["supplier_id"])
-tr = orders[orders["supplier_id"].isin(ids)].merge(
-    ratings[["order_id", "quality", "communication"]], on="order_id", how="left"
-).dropna(subset=["order_date"]).copy()
-if tr.empty:
-    st.info("No dated orders for the current selection.")
-else:
-    # Per-order overall consistent with the measured scoring.
-    pmin, pmax = tr["amount_eur"].min(), tr["amount_eur"].max()
-    tr["delivery_time"] = tr["delivery_days"].apply(
-        lambda d: 3.0 if pd.isna(d) else delivery_days_to_score(d)
-    )
-    tr["price"] = tr["amount_eur"].apply(lambda v: _linear_score(v, best=pmin, worst=pmax))
-    tr["overall"] = sum(tr[c] * CRITERIA_WEIGHTS[c] for c in CRITERIA)
-    tr["month"] = tr["order_date"].dt.to_period("M").dt.start_time
-    monthly = tr.groupby("month").agg(
-        avg=("overall", "mean"), n=("overall", "size")).reset_index()
-    base = alt.Chart(monthly).encode(x=alt.X("month:T", title=None))
-    line = base.mark_line(point=True, color=ACCENT, strokeWidth=3).encode(
-        y=alt.Y("avg:Q", scale=alt.Scale(domain=[1, 5]), title="Avg. overall"),
-        tooltip=[alt.Tooltip("month:T", title="Month"),
-                 alt.Tooltip("avg:Q", format=".2f"),
-                 alt.Tooltip("n:Q", title="Ratings")],
-    )
-    rule = alt.Chart(pd.DataFrame({"y": [DEFAULT_THRESHOLD]})).mark_rule(
-        color="#ef4444", strokeDash=[5, 4]).encode(y="y:Q")
-    st.altair_chart(line + rule, use_container_width=True)
-    st.caption("Dashed red line = underperformer threshold.")

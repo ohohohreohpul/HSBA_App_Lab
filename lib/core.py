@@ -45,8 +45,8 @@ CRITERIA_LABELS = {
 # to a procurement team, so they carry more weight than price/communication.
 # Changing these here changes the score everywhere in the app at once.
 CRITERIA_WEIGHTS = {
-    "delivery_time": 0.30,
-    "quality": 0.35,
+    "delivery_time": 0.35,
+    "quality": 0.30,
     "price": 0.20,
     "communication": 0.15,
 }
@@ -117,6 +117,21 @@ def risk_color(level: str) -> str:
         if label == level:
             return color
     return "#94a3b8"  # slate for Unknown
+
+
+def weighted_overall(row) -> float:
+    """Weighted overall score over the criteria that actually have data.
+
+    Any criterion whose score is NaN (no information — e.g. delivery time for a
+    supplier with no delivered orders) is dropped, and the weights of the
+    remaining criteria are re-normalised to sum to 1.0. A missing criterion
+    therefore neither raises nor lowers the score. If nothing is scoreable the
+    result is NaN."""
+    avail = [c for c in CRITERIA if pd.notna(row[c])]
+    total_w = sum(CRITERIA_WEIGHTS[c] for c in avail)
+    if total_w == 0:
+        return float("nan")
+    return sum(row[c] * CRITERIA_WEIGHTS[c] for c in avail) / total_w
 
 
 def explain_formula() -> dict:
@@ -203,10 +218,12 @@ def build_scoreboard() -> pd.DataFrame:
     board["missing_delivery_data"] = board["avg_delivery_days"].isna()
 
     # Delivery: fewer avg days = higher score (fixed linear band). Suppliers with
-    # no delivered orders get a neutral 3.0 so the overall score still computes;
-    # they're flagged via missing_delivery_data / has_missing_data.
+    # no delivered orders have NO delivery history, so we have no information to
+    # score — delivery stays NaN and is *excluded* from the overall score (the
+    # remaining weights are re-normalised below). The gap is surfaced in the
+    # drilldown via missing_delivery_data / has_missing_data.
     board["delivery_time"] = board["avg_delivery_days"].apply(
-        lambda d: 3.0 if pd.isna(d) else delivery_days_to_score(d)
+        lambda d: float("nan") if pd.isna(d) else delivery_days_to_score(d)
     )
 
     # Price: cheaper avg order = higher score, scaled across the observed range
@@ -221,7 +238,11 @@ def build_scoreboard() -> pd.DataFrame:
         board["price"] = float("nan")
 
     # Weighted overall score (delivery & price now from measured metrics).
-    board["overall_score"] = sum(board[c] * CRITERIA_WEIGHTS[c] for c in CRITERIA)
+    # Criteria with no data (e.g. delivery time for a supplier with no delivered
+    # orders) are NaN and get *excluded*: we sum only the available criteria and
+    # re-normalise their weights so they still add up to 1.0. This way a missing
+    # criterion neither helps nor hurts the score — it simply doesn't count.
+    board["overall_score"] = board.apply(weighted_overall, axis=1)
 
     for col in list(CRITERIA) + ["overall_score", "avg_delivery_days", "avg_price_eur"]:
         board[col] = board[col].round(2)

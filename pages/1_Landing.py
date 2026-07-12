@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from lib.core import build_scoreboard, DEFAULT_THRESHOLD
+from lib.core import build_scoreboard
 from lib.ui import kpi_row
 
 board = build_scoreboard()
@@ -39,18 +39,18 @@ st.write("")
 # --------------------------------------------------------------------------- #
 n = len(board)
 avg = board["overall_score"].mean()
-below = int((board["overall_score"] < DEFAULT_THRESHOLD).sum())
 high_risk = int((board["risk_level"] == "High").sum())
 countries = board["country"].nunique()
-missing = int(board["has_missing_data"].sum())
+# Suppliers whose orders are all still open (cancelled / in transit), so no
+# delivery has completed yet — an unfinished-delivery count, not a data error.
+unfinished = int(board["missing_delivery_data"].sum())
 
 st.subheader("At a glance")
 kpi_row([
     {"label": "Suppliers", "value": n, "sub": f"{countries} countries"},
     {"label": "Avg. score", "value": f"{avg:.2f}", "sub": "weighted, 1–5"},
-    {"label": "Below threshold", "value": below, "sub": f"< {DEFAULT_THRESHOLD:.1f} overall"},
-    {"label": "High risk", "value": high_risk, "sub": "need attention"},
-    {"label": "Data gaps", "value": missing, "sub": "missing fields"},
+    {"label": "High risk", "value": high_risk, "sub": "< 2.5 overall"},
+    {"label": "Unfinished deliveries", "value": unfinished, "sub": "no completed order yet"},
 ])
 
 st.write("")

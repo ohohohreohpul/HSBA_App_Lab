@@ -171,6 +171,23 @@ def risk_badge_html(level: str) -> str:
     )
 
 
+def confidence_badge_html(low_confidence: bool, num_ratings: int | None = None) -> str:
+    """Coloured pill for data confidence: amber "Low confidence" when a supplier
+    has too few ratings to trust the score, green "Confidence OK" otherwise."""
+    if low_confidence:
+        color = "#d97706"  # amber
+        text = "Low confidence"
+        if num_ratings is not None:
+            text += f" ({num_ratings} rating{'s' if num_ratings != 1 else ''})"
+    else:
+        color = "#10b981"  # green
+        text = "Confidence OK"
+    return (
+        f'<span class="badge" style="background:{color}1a;color:{color};">'
+        f'● {text}</span>'
+    )
+
+
 def breadcrumb(*parts: str) -> None:
     st.markdown('<div class="crumb">' + " › ".join(parts) + "</div>", unsafe_allow_html=True)
 

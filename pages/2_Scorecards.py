@@ -8,6 +8,7 @@ from lib.core import (
     CRITERIA,
     CRITERIA_LABELS,
     DEFAULT_THRESHOLD,
+    MIN_RATINGS_FOR_CONFIDENCE,
     apply_filters,
     build_scoreboard,
     suggest_names,
@@ -126,14 +127,16 @@ all_cols = {
     **CRITERIA_LABELS,
     "overall_score": "Overall",
     "risk_level": "Risk",
+    "confidence": "Confidence",
     "num_orders": "Orders",
     "total_spend": "Spend (€)",
     "num_ratings": "Ratings",
 }
 visible = ["supplier_name", "country", "category_name", "overall_score",
-           "risk_level", "num_orders", "total_spend"]
+           "risk_level", "confidence", "num_orders", "total_spend"]
 
-st.caption("🔴 red = below threshold · low-confidence rows marked ⚠")
+st.caption("🔴 red = below threshold · 🟠 Confidence = \"Low\" means fewer than "
+           f"{MIN_RATINGS_FOR_CONFIDENCE} rated orders, so the score is less reliable.")
 
 # --------------------------------------------------------------------------- #
 # The scorecard table — all suppliers in the filtered view, sortable, with
@@ -142,9 +145,10 @@ st.caption("🔴 red = below threshold · low-confidence rows marked ⚠")
 # is reachable without paging.
 # --------------------------------------------------------------------------- #
 display = view.copy()
-display["Supplier"] = display.apply(
-    lambda r: f"⚠ {r['supplier_name']}" if r["low_confidence"] else r["supplier_name"], axis=1
-)
+display["Supplier"] = display["supplier_name"]
+# Dedicated confidence column: "Low" when there are too few ratings to trust the
+# score, "OK" otherwise (coloured by _risk_style below).
+display["Confidence"] = display["low_confidence"].map({True: "Low", False: "OK"})
 # First column: a per-row action button ("Open ▶") that opens the drilldown.
 display["Select for drilldown"] = ":material/arrow_forward: Open"
 display = display.rename(columns={
@@ -163,6 +167,9 @@ def _risk_style(row):
     if "Overall" in row.index and row["Overall"] < threshold:
         idx = list(row.index).index("Overall")
         styles[idx] = "background-color:#fdecea;color:#b91c1c;font-weight:700;"
+    if "Confidence" in row.index and row["Confidence"] == "Low":
+        idx = list(row.index).index("Confidence")
+        styles[idx] = "background-color:#fef3c7;color:#92400e;font-weight:700;"
     return styles
 
 
