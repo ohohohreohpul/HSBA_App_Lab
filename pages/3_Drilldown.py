@@ -127,10 +127,15 @@ st.divider()
 left, right = st.columns([1, 1])
 with left:
     st.subheader("Criterion averages")
+    # Effective weights: the four base criteria share (1 - CANCEL_WEIGHT) of the
+    # overall, reliability takes CANCEL_WEIGHT. Listing reliability here as a fifth
+    # row means "Threshold violations" and "weakest area" account for the whole
+    # overall score, not just the base.
     comp = pd.DataFrame({
-        "Criterion": [CRITERIA_LABELS[c] for c in CRITERIA],
-        "Score": [row[c] for c in CRITERIA],
-        "Weight": [CRITERIA_WEIGHTS[c] for c in CRITERIA],
+        "Criterion": [CRITERIA_LABELS[c] for c in CRITERIA] + ["Reliability"],
+        "Score": [row[c] for c in CRITERIA] + [row.get("cancel_score")],
+        "Weight": [w * (1.0 - CANCEL_WEIGHT) for w in CRITERIA_WEIGHTS.values()]
+                  + [CANCEL_WEIGHT],
     })
     comp["Contribution"] = (comp["Score"] * comp["Weight"]).round(3)
 
@@ -157,6 +162,12 @@ with left:
                           "Average of this supplier's communication ratings (1–5)."),
     }
 
+    # The four base criteria share 85% of the overall (the base), split by their
+    # own weights; reliability is the remaining 15%. So a criterion's *effective*
+    # weight in the overall is (1 - CANCEL_WEIGHT) × its base weight — that's what
+    # we show, so the five tiles' weights sum to 100% and reconcile to "Overall".
+    base_share = 1.0 - CANCEL_WEIGHT
+
     # 2×2 tiles: big number = the real average; the delta shows the 1–5 score
     # that average maps to (so you see both the measurement and its score).
     tile_rows = [CRITERIA[i:i + 2] for i in range(0, len(CRITERIA), 2)]
@@ -165,12 +176,29 @@ with left:
         for col, crit in zip(cols, pair):
             label, value, help_txt = tile_spec[crit]
             score = row[crit]
+            eff_w = CRITERIA_WEIGHTS[crit] * base_share
             col.metric(
                 label, value,
                 delta=(f"score {score:.2f}/5" if pd.notna(score) else None),
                 delta_color="off",
-                help=help_txt + f" Weight in overall: {CRITERIA_WEIGHTS[crit]*100:.0f}%.",
+                help=help_txt + f" Weight in overall: {eff_w*100:.0f}%.",
             )
+
+    # Fifth component: reliability (from cancellations). Shown alongside the four
+    # base criteria so the panel accounts for the whole overall score, not just
+    # the 85% base. Its big number is the cancellation rate; the delta is the 1–5
+    # reliability score that feeds the overall at CANCEL_WEIGHT.
+    rel_score = row.get("cancel_score")
+    rel_value = f"{crate*100:.0f}% cancelled" if pd.notna(crate) else "—"
+    st.metric(
+        "Reliability", rel_value,
+        delta=(f"score {rel_score:.2f}/5" if pd.notna(rel_score) else None),
+        delta_color="off",
+        help="Reliability score from cancellations (cancelled ÷ delivered+cancelled), "
+             "penalised exponentially. 0% cancelled → 5.0. "
+             f"Weight in overall: {CANCEL_WEIGHT*100:.0f}%.",
+    )
+
     if row.get("missing_delivery_data", False):
         st.caption("ℹ No delivered orders yet — there is no delivery history to "
                    "measure, so delivery time is **excluded** from the overall "
