@@ -57,27 +57,36 @@ Streamlit opens <http://localhost:8501>. Stop it with `Ctrl+C`.
 
 ## Scoring
 
-Each criterion is expressed on a **1–5 scale**, but they come from two sources:
+The overall score has two parts: a **base score** built from *delivered orders
+only*, blended with a **reliability score** that penalises cancellations.
+
+The base is a weighted average of four criteria, each on a **1–5 scale**:
 
 - **Delivery Time** and **Price** are derived from *real measured quantities*:
   - Delivery = average **days** between `order_date` and `delivery_date`
     (≤5 days → 5.0, ≥30 days → 1.0, linear).
-  - Price = average **order value in €**, scaled across all suppliers
+  - Price = average **order value in €**, scaled against **category peers**
     (cheapest → 5.0, priciest → 1.0).
 - **Quality** and **Communication** are the mean of the supplier's 1–5 order
   ratings.
 
-The **overall score is a weighted average**:
-
 ```
-Overall = 0.30·Delivery + 0.35·Quality + 0.20·Price + 0.15·Communication
+Base    = 0.35·Delivery + 0.30·Quality + 0.20·Price + 0.15·Communication
+Overall = 0.85·Base + 0.15·Reliability
 ```
 
-Weights and the days→score band live in `lib/core.py` (`CRITERIA_WEIGHTS`,
-`DELIVERY_FAST_DAYS`/`DELIVERY_SLOW_DAYS`). Overall scores map to **risk bands**:
-High (< 2.5), Medium (2.5–3.5), Low (≥ 3.5). Suppliers with fewer than 3 rated
-orders are **low confidence**; suppliers with no delivered orders have no
-measurable delivery time (scored a neutral 3.0 and flagged as missing data).
+**Reliability** punishes cancellations *exponentially*:
+`reliability = 1 + 4·(1 − cancel_rate)²`, where
+`cancel_rate = cancelled ÷ (cancelled + delivered)` — so 0% cancelled scores 5.0
+and the score falls faster the more a supplier cancels. Cancelled orders are
+excluded from spend and every base criterion; in-transit orders count toward
+spend but not the base (nothing delivered/rated yet).
+
+Weights and bands live in `lib/core.py` (`CRITERIA_WEIGHTS`, `CANCEL_WEIGHT`,
+`CANCEL_EXPONENT`, `DELIVERY_FAST_DAYS`/`DELIVERY_SLOW_DAYS`). Overall scores map
+to **risk bands**: High (< 2.5), Medium (2.5–3.5), Low (≥ 3.5). Suppliers with
+fewer than 3 rated (delivered) orders are **low confidence**; suppliers with no
+delivered orders have no base and are flagged as missing data.
 
 The drilldown's **Criterion averages** tiles show the real averages — average
 **days** for delivery, average **€** for price, average rating for quality and

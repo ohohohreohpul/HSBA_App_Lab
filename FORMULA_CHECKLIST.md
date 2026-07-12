@@ -12,39 +12,44 @@ All scoring logic lives in **`lib/core.py`** (single source of truth).
 - [ ] Weights used in `build_scoreboard` (core.py:224) are the *same* dict used
       in the drilldown trend chart (`3_Drilldown.py`, `overall` calc) — no drift.
 
-## 2. Overall score (`build_scoreboard`, core.py:224)
-- [ ] `overall = Σ(criterion × weight)` — confirm it's a weighted **sum**, not a mean.
+## 2. Overall score (`build_scoreboard`)
+- [ ] `overall = 0.85·base + 0.15·cancel_score`, where `base` is the weighted
+      average of the four criteria over **delivered orders only** and `cancel_score`
+      is the reliability penalty (§12). Confirm the blend, not a plain criterion mean.
 - [ ] Result lands in the **1.0–5.0** range for real data (spot-check a few suppliers).
-- [ ] Rounding to 2 dp (core.py:227) happens *after* the weighted sum, not before.
+- [ ] Rounding to 2 dp happens *after* the blend, not before.
 - [ ] Hand-calculate one supplier end-to-end and compare to the app's "Overall".
 
 ## 3. Delivery score (`delivery_days_to_score` / `_linear_score`, core.py:75–87)
 - [ ] Band is correct: **≤ 5 days → 5.0**, **≥ 30 days → 1.0**, linear between.
 - [ ] `delivery_days = delivery_date − order_date` in **days** (core.py:150) — no off-by-one.
-- [ ] Suppliers with no delivered orders get neutral **3.0** and are flagged
-      `missing_delivery_data` (core.py:203–210) — confirm this is the intended default.
+- [ ] Suppliers with no delivered orders have **no** delivery score (NaN) — it is
+      *excluded* from the base and the remaining weights are re-normalised. They are
+      flagged `missing_delivery_data`. (There is no "neutral 3.0" fallback.)
 - [ ] Negative delivery_days (delivery before order = bad data) — decide how to handle;
       currently they'd score > 5 before clamping. Check `_linear_score` clamp holds.
 
-## 4. Price score (`build_scoreboard`, core.py:212–221)
-- [ ] Scaling is **relative** to the observed range: cheapest supplier → 5, priciest → 1.
-- [ ] Uses **average** order value per supplier (`avg_price_eur`), not total spend.
-- [ ] Understand the side effect: adding/removing a supplier **re-scales everyone's**
-      price score (relative, not absolute). Confirm this is acceptable for the assignment.
-- [ ] Single-supplier / all-equal-price edge case → `_linear_score` returns 3.0 (best==worst).
+## 4. Price score (`build_scoreboard`, `_price_for_category`)
+- [ ] Scaling is **relative within each category**: the cheapest supplier in a
+      category → 5, the priciest → 1 (not scaled across all suppliers).
+- [ ] Uses **average** order value per supplier over **delivered, non-special**
+      orders (`avg_price_eur`), not total spend and not cancelled orders.
+- [ ] Understand the side effect: adding/removing a supplier **re-scales that
+      category's** price scores (relative, not absolute).
+- [ ] Category with 0–1 priced suppliers → lone supplier is neutral 3.0, empty → NaN.
 
 ## 5. Quality & Communication (core.py:171)
 - [ ] These are plain **means** of the 1–5 ratings from `ratings.csv`.
 - [ ] Suppliers with no ratings → NaN → check how that flows into `overall_score`.
 
-## 6. ⚠️ Measured vs. rated consistency (IMPORTANT)
-- [ ] `ratings.csv` has `delivery_time` and `price` columns, but the scoreboard
-      **ignores them** and derives delivery/price from order data instead
-      (core.py:64–65, MEASURED_CRITERIA). Confirm this is intentional and the
-      rating-file columns aren't accidentally expected to matter.
-- [ ] The data-check loop (core.py:391) validates all 4 CRITERIA are 1–5 in ratings.csv,
-      including the now-unused delivery_time/price rating columns — decide if that
-      check should stay or be dropped.
+## 6. Measured vs. rated consistency
+- [ ] `ratings.csv` holds only `quality` & `communication` now (the dead
+      `delivery_time`/`price` rating columns were removed). Delivery & price are
+      derived from order data (`MEASURED_CRITERIA`). Confirm no code still expects
+      the old columns.
+- [ ] `ratings.csv` contains ratings for **delivered orders only** — cancelled and
+      in-transit orders are not rated. Confirm the confidence counts reflect that.
+- [ ] The data-check loop validates only `quality` & `communication` are 1–5.
 
 ## 7. Risk bands (`RISK_BANDS` / `risk_level`, core.py:98–112)
 - [ ] Boundaries: **High** [0, 2.5), **Medium** [2.5, 3.5), **Low** [3.5, 5.01).
@@ -58,17 +63,30 @@ All scoring logic lives in **`lib/core.py`** (single source of truth).
       flagged `low_confidence` but its score is still shown — confirm that's intended.
 
 ## 9. Drilldown trend recomputation (`3_Drilldown.py`)
-- [ ] The per-order `overall` in the trend chart uses the **same weights** and the
-      **same** `delivery_days_to_score` / `_linear_score` as `build_scoreboard`.
-- [ ] Price in the trend is scaled across **that supplier's own orders** (pmin/pmax),
-      which differs from the scoreboard's **cross-supplier** scaling — confirm this
-      intentional difference and that it's not presented as the same number.
+- [ ] The trend uses the **same** weights, `delivery_days_to_score`, `_linear_score`
+      and `cancel_reliability_score` as `build_scoreboard` — base from delivered
+      orders, then blended with each quarter's cancellation reliability.
+- [ ] Price in the trend uses the **category** anchors from the board (matching the
+      scoreboard's per-category scaling), not the supplier's own min/max.
+- [ ] The combined trend average should land close to the headline "Overall".
 - [ ] Quarterly grouping (`to_period("Q")`) averages the right orders per quarter.
 
-## 10. Aggregations (`ostats`, core.py:184–194)
-- [ ] `total_spend = Σ amount_eur`, `num_orders = count(order_id)` — correct columns.
+## 10. Aggregations (`ostats` / spend / status counts)
+- [ ] `total_spend = Σ amount_eur` over **Delivered + In Transit** only (cancelled
+      excluded); `num_orders = count(order_id)` over **all** orders.
 - [ ] `avg_delivery_days` / `avg_price_eur` are **means** and ignore NaN correctly.
 - [ ] `num_ratings` counts rating rows per supplier, not orders.
+- [ ] `num_delivered` / `num_cancelled` come from the status value-counts and feed §12.
+
+## 12. Cancellation reliability (`cancel_reliability_score`, `CANCEL_WEIGHT`)
+- [ ] `cancel_rate = cancelled / (cancelled + delivered)` — in-transit orders are
+      **not** in the denominator.
+- [ ] `cancel_score = 1 + 4·(1 − rate)^CANCEL_EXPONENT` (exponent 2 → convex, so the
+      penalty accelerates). 0% → 5.0, 100% → 1.0.
+- [ ] Blended at `CANCEL_WEIGHT = 0.15`; base carries the other 0.85.
+- [ ] A supplier with no resolved orders → `cancel_score` NaN → overall falls back to
+      base; a supplier with no base (nothing delivered) → overall falls back to the
+      cancel_score. Confirm neither path yields a spurious NaN overall.
 
 ## 11. Reconciliation test
 - [ ] Pick **2–3 suppliers**, compute every criterion and the overall by hand from

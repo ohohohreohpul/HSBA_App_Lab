@@ -7,12 +7,14 @@ import pandas as pd
 import streamlit as st
 
 from lib.core import (
+    CANCEL_WEIGHT,
     CRITERIA,
     CRITERIA_LABELS,
     CRITERIA_WEIGHTS,
     DEFAULT_THRESHOLD,
     _linear_score,
     build_scoreboard,
+    cancel_reliability_score,
     delivery_days_to_score,
     load_tables,
     risk_color,
@@ -89,12 +91,33 @@ with meta_r:
     score_info_popover("drill")
 
 color = risk_color(row["risk_level"])
-mc1, mc2, mc3, mc4 = st.columns(4)
+mc1, mc2, mc3, mc4, mc5 = st.columns(5)
 mc1.metric("Overall score", f"{row['overall_score']:.2f}")
-mc2.metric("Orders", int(row["num_orders"]))
-mc3.metric("Total spend", f"€{row['total_spend']:,.0f}")
+mc2.metric("Orders", int(row["num_orders"]),
+           help="All orders on record (delivered, in transit and cancelled).")
+mc3.metric("Total spend", f"€{row['total_spend']:,.0f}",
+           help="Delivered + in-transit orders. Cancelled orders are excluded.")
+n_canc = int(row["num_cancelled"])
+crate = row.get("cancel_rate")
+mc4.metric(
+    "Cancelled", n_canc,
+    delta=(f"{crate*100:.0f}% of resolved" if pd.notna(crate) else None),
+    delta_color="inverse",
+    help="Cancellations vs delivered orders drive the reliability score "
+         f"({int(round(CANCEL_WEIGHT*100))}% of the overall). More cancellations "
+         "lower the score exponentially.",
+)
 last = row["last_order"]
-mc4.metric("Last order", last.date().isoformat() if pd.notna(last) else "—")
+mc5.metric("Last order", last.date().isoformat() if pd.notna(last) else "—")
+
+# Flag a poor cancellation record explicitly.
+if pd.notna(crate) and crate >= 0.25:
+    st.warning(
+        f"⚠ **High cancellation rate** — {n_canc} of "
+        f"{n_canc + int(row['num_delivered'])} resolved orders were cancelled "
+        f"({crate*100:.0f}%). This lowers the overall score via the reliability "
+        f"component (reliability score {row['cancel_score']:.2f}/5)."
+    )
 
 st.divider()
 
@@ -169,9 +192,12 @@ with right:
     if row["overall_score"] < threshold:
         recs.append("Overall score is below threshold — consider a formal review "
                     "or corrective-action plan.")
-    if weakest["Score"] < 3.5:
+    if pd.notna(weakest["Score"]) and weakest["Score"] < 3.5:
         recs.append(f"Weakest area is **{weakest['Criterion']}** "
                     f"({weakest['Score']:.2f}). Raise this in the next review.")
+    if pd.notna(crate) and crate >= 0.25:
+        recs.append(f"High cancellation rate ({crate*100:.0f}%) — investigate why "
+                    "orders are being cancelled; it is dragging the score down.")
     if row["low_confidence"]:
         recs.append("Few rated orders — gather more feedback before major decisions.")
     if not recs:
@@ -182,35 +208,70 @@ with right:
 st.divider()
 
 # --------------------------------------------------------------------------- #
-# Trend over time — quarterly average overall score, consistent with the
-# measured scoring (per-order delivery score from days, price score from €,
-# quality & communication from ratings).
+# Trend over time — quarterly average overall score, computed the SAME way as
+# the scoreboard so the line and the headline score can't drift apart:
+#   * base per delivered order: delivery from days, price scaled against the
+#     supplier's CATEGORY peers (same anchors as the board), quality/comm from
+#     ratings; cancelled/in-transit orders carry no base (delivered-only).
+#   * each quarter's base is then blended with that quarter's cancellation
+#     reliability (delivered vs cancelled), exactly like build_scoreboard.
 # --------------------------------------------------------------------------- #
 st.subheader("Performance trend")
-sup_ratings = orders[orders["supplier_id"] == sid].merge(
+sup_all = orders[orders["supplier_id"] == sid].merge(
     ratings[["order_id", "quality", "communication"]], on="order_id", how="left"
-)
-if sup_ratings["order_date"].notna().any():
-    sup_ratings = sup_ratings.dropna(subset=["order_date"]).copy()
-    # Per-order price score, scaled across this supplier's own orders.
-    pmin, pmax = sup_ratings["amount_eur"].min(), sup_ratings["amount_eur"].max()
-    # No measured delivery days for an order → no delivery info, so it is
-    # excluded from that order's overall (weights re-normalised), matching the
-    # scoreboard logic instead of injecting a neutral score.
-    sup_ratings["delivery_time"] = sup_ratings["delivery_days"].apply(
+).copy()
+if sup_all["order_date"].notna().any():
+    sup_all = sup_all.dropna(subset=["order_date"]).copy()
+    period = sup_all["order_date"].dt.to_period("Q")
+    sup_all["period"] = period.dt.start_time
+    sup_all["quarter"] = period.apply(lambda p: f"Q{p.quarter} {p.year}")
+
+    # Price anchors = this supplier's category bounds from the scoreboard, so the
+    # per-order price score matches the board's per-category scaling. Fall back
+    # to the supplier's own spread if the category has no usable range.
+    cat_prices = board.loc[board["category_name"] == row["category_name"],
+                           "avg_price_eur"].dropna()
+    if len(cat_prices) >= 2:
+        pcheap, ppricey = cat_prices.min(), cat_prices.max()
+    else:
+        vals = sup_all.loc[sup_all["status"] == "Delivered", "amount_eur"].dropna()
+        pcheap, ppricey = (vals.min(), vals.max()) if len(vals) else (0.0, 0.0)
+
+    # Base is delivered-only: non-delivered orders get NaN criteria and are
+    # excluded from that order's base (weights re-normalised) — matching the board.
+    delivered_mask = sup_all["status"] == "Delivered"
+    sup_all["delivery_time"] = sup_all["delivery_days"].apply(
         lambda d: float("nan") if pd.isna(d) else delivery_days_to_score(d)
     )
-    sup_ratings["price"] = sup_ratings["amount_eur"].apply(
-        lambda v: _linear_score(v, best=pmin, worst=pmax)
+    sup_all["price"] = sup_all.apply(
+        lambda r: _linear_score(r["amount_eur"], best=pcheap, worst=ppricey)
+        if r["status"] == "Delivered" else float("nan"),
+        axis=1,
     )
-    sup_ratings["overall"] = sup_ratings.apply(weighted_overall, axis=1)
-    period = sup_ratings["order_date"].dt.to_period("Q")
-    sup_ratings["period"] = period.dt.start_time
-    # Human-readable quarter label, e.g. "Q2 2025".
-    sup_ratings["quarter"] = period.apply(lambda p: f"Q{p.quarter} {p.year}")
+    # Quality/communication only count for delivered orders (others aren't rated).
+    for c in ("quality", "communication"):
+        sup_all.loc[~delivered_mask, c] = float("nan")
+    sup_all["base"] = sup_all.apply(weighted_overall, axis=1)
+
+    # Per quarter: mean base over delivered orders, blended with that quarter's
+    # cancellation reliability (delivered vs cancelled in the same quarter).
+    def _quarter_overall(g: pd.DataFrame) -> float:
+        base = g.loc[g["status"] == "Delivered", "base"].mean()
+        n_deliv = int((g["status"] == "Delivered").sum())
+        n_canc = int((g["status"] == "Cancelled").sum())
+        canc = cancel_reliability_score(n_canc, n_deliv)
+        if pd.isna(base) and pd.isna(canc):
+            return float("nan")
+        if pd.isna(base):
+            return canc
+        if pd.isna(canc):
+            return base
+        return (1.0 - CANCEL_WEIGHT) * base + CANCEL_WEIGHT * canc
+
     trend = (
-        sup_ratings.groupby(["period", "quarter"])["overall"]
-        .mean().reset_index().sort_values("period")
+        sup_all.groupby(["period", "quarter"])
+        .apply(_quarter_overall).rename("overall").reset_index()
+        .dropna(subset=["overall"]).sort_values("period")
     )
     # A constant column drives the colour legend so the blue line is labelled.
     trend["series"] = "Avg. overall score"

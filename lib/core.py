@@ -52,6 +52,43 @@ CRITERIA_WEIGHTS = {
 }
 
 # --------------------------------------------------------------------------- #
+# Cancellation reliability.
+#
+# The four criteria above are the "base" score and are built from DELIVERED
+# orders only (a cancelled order has no delivery, price paid, or rating). But a
+# supplier that keeps cancelling is unreliable, so we fold a separate
+# reliability score into the overall as if it were a fifth criterion:
+#
+#   overall = (1 - CANCEL_WEIGHT) * base + CANCEL_WEIGHT * cancel_score
+#
+# cancel_score is on the same 1–5 scale and PUNISHES cancellations
+# exponentially — one cancellation barely moves it, but the penalty accelerates
+# as the cancel rate climbs (see cancel_reliability_score):
+#
+#   cancel_rate  = cancelled / (cancelled + delivered)   # in-transit ignored
+#   cancel_score = 1 + 4 * (1 - cancel_rate) ** CANCEL_EXPONENT
+#
+# A perfect (0% cancelled) supplier scores 5.0; the more they cancel, the
+# faster the score falls toward 1.0.
+# --------------------------------------------------------------------------- #
+CANCEL_WEIGHT = 0.15       # share of the overall score driven by reliability
+CANCEL_EXPONENT = 2.0      # >1 → cancellations bite harder as the rate grows
+
+
+def cancel_reliability_score(n_cancelled: int, n_delivered: int) -> float:
+    """1–5 reliability score from cancellations, punishing them exponentially.
+
+    Rate is cancelled / (cancelled + delivered) — in-transit orders aren't yet
+    resolved, so they're excluded from the denominator. 0% cancelled → 5.0,
+    higher rates fall toward 1.0 with an exponential (convex) curve. Returns
+    NaN when there is no resolved order at all (nothing to judge)."""
+    resolved = n_cancelled + n_delivered
+    if resolved <= 0:
+        return float("nan")
+    rate = n_cancelled / resolved
+    return round(1.0 + 4.0 * (1.0 - rate) ** CANCEL_EXPONENT, 2)
+
+# --------------------------------------------------------------------------- #
 # Measured-metric scoring.
 #
 # Delivery and Price are no longer subjective 1–5 ratings — they are derived
@@ -59,6 +96,9 @@ CRITERIA_WEIGHTS = {
 #   * Delivery: average days between order_date and delivery_date (faster = better)
 #   * Price:    average order value in € (cheaper = better)
 # Quality and Communication remain 1–5 ratings from ratings.csv.
+# All four are computed from DELIVERED orders only — a cancelled or in-transit
+# order has no completed delivery, no price actually paid, and no rating.
+# Cancellations are handled separately by the reliability score above.
 # --------------------------------------------------------------------------- #
 # Which criteria are measured (derived) vs. a plain rating.
 MEASURED_CRITERIA = {"delivery_time", "price"}
@@ -209,14 +249,23 @@ def build_scoreboard() -> pd.DataFrame:
         categories[["category_id", "category_name"]], on="category_id", how="left"
     )
 
-    # Order stats (spend, order count, last order, delivery metric). total_spend
-    # and num_orders count ALL orders; the price metric is handled separately
-    # below because special-circumstance orders are excluded from it.
+    # Cancelled orders never happened: no goods, no delivery, no price paid, no
+    # rating. They must not feed the base score or spend — they are captured
+    # separately by the reliability score. Split the orders once here:
+    #   * delivered_orders  → drive delivery + price (the measured criteria)
+    #   * spendable_orders  → Delivered + In Transit (money is committed) drive
+    #                         total_spend; Cancelled orders are excluded.
+    delivered_orders = orders[orders["status"] == "Delivered"]
+    spendable_orders = orders[orders["status"] != "Cancelled"]
+
+    # Order stats. num_orders counts ALL orders (the supplier's full history);
+    # total_spend is Delivered + In Transit only (committed money, no cancels);
+    # avg_delivery_days is naturally delivered-only (cancels/in-transit have no
+    # delivery_date, hence NaN days).
     ostats = (
         orders.groupby("supplier_id")
         .agg(
             num_orders=("order_id", "count"),
-            total_spend=("amount_eur", "sum"),
             last_order=("order_date", "max"),
             avg_delivery_days=("delivery_days", "mean"),
             num_special_orders=("special_circumstance", "sum"),
@@ -225,11 +274,33 @@ def build_scoreboard() -> pd.DataFrame:
     )
     board = board.merge(ostats, on="supplier_id", how="left")
 
-    # Average price for scoring uses NON-special orders only. A special order (a
-    # justified high price) neither raises nor lowers the price score.
-    normal_orders = orders[~orders["special_circumstance"]]
+    # Spend excludes cancelled orders (that money was never committed).
+    spend = (
+        spendable_orders.groupby("supplier_id")["amount_eur"]
+        .sum().rename("total_spend").reset_index()
+    )
+    board = board.merge(spend, on="supplier_id", how="left")
+
+    # Cancellation counts drive the reliability score (delivered vs cancelled).
+    status_counts = (
+        orders.groupby("supplier_id")["status"]
+        .value_counts().unstack(fill_value=0)
+    )
+    board["num_delivered"] = (
+        board["supplier_id"].map(status_counts.get("Delivered", pd.Series(dtype=int)))
+        .fillna(0).astype(int)
+    )
+    board["num_cancelled"] = (
+        board["supplier_id"].map(status_counts.get("Cancelled", pd.Series(dtype=int)))
+        .fillna(0).astype(int)
+    )
+
+    # Average price for scoring uses DELIVERED, NON-special orders only. A
+    # cancelled order was never paid; a special order (a justified high price)
+    # neither raises nor lowers the price score.
+    priced_orders = delivered_orders[~delivered_orders["special_circumstance"]]
     avg_price = (
-        normal_orders.groupby("supplier_id")["amount_eur"]
+        priced_orders.groupby("supplier_id")["amount_eur"]
         .mean().rename("avg_price_eur").reset_index()
     )
     board = board.merge(avg_price, on="supplier_id", how="left")
@@ -276,14 +347,43 @@ def build_scoreboard() -> pd.DataFrame:
         board.groupby("category_name", group_keys=False).apply(_price_for_category)
     )
 
-    # Weighted overall score (delivery & price now from measured metrics).
+    # Base score: weighted average of the four DELIVERED-order criteria.
     # Criteria with no data (e.g. delivery time for a supplier with no delivered
     # orders) are NaN and get *excluded*: we sum only the available criteria and
     # re-normalise their weights so they still add up to 1.0. This way a missing
     # criterion neither helps nor hurts the score — it simply doesn't count.
-    board["overall_score"] = board.apply(weighted_overall, axis=1)
+    board["base_score"] = board.apply(weighted_overall, axis=1)
 
-    for col in list(CRITERIA) + ["overall_score", "avg_delivery_days", "avg_price_eur"]:
+    # Reliability score from cancellations (exponential penalty). NaN when the
+    # supplier has no resolved (delivered/cancelled) order yet.
+    board["cancel_score"] = board.apply(
+        lambda r: cancel_reliability_score(int(r["num_cancelled"]), int(r["num_delivered"])),
+        axis=1,
+    )
+    board["cancel_rate"] = board.apply(
+        lambda r: (r["num_cancelled"] / (r["num_cancelled"] + r["num_delivered"]))
+        if (r["num_cancelled"] + r["num_delivered"]) > 0 else float("nan"),
+        axis=1,
+    )
+
+    # Overall = base blended with reliability. If one side is missing (e.g. a
+    # supplier with no delivered orders has no base, or one with no resolved
+    # orders has no cancel_score) fall back to whichever side exists so a lone
+    # signal still yields a score instead of NaN.
+    def _blend(r) -> float:
+        base, canc = r["base_score"], r["cancel_score"]
+        if pd.isna(base) and pd.isna(canc):
+            return float("nan")
+        if pd.isna(base):
+            return canc
+        if pd.isna(canc):
+            return base
+        return (1.0 - CANCEL_WEIGHT) * base + CANCEL_WEIGHT * canc
+
+    board["overall_score"] = board.apply(_blend, axis=1)
+
+    for col in (list(CRITERIA) + ["base_score", "cancel_score", "overall_score",
+                                   "avg_delivery_days", "avg_price_eur"]):
         board[col] = board[col].round(2)
 
     board["risk_level"] = board["overall_score"].apply(risk_level)

@@ -217,30 +217,43 @@ def score_info_popover(key: str = "") -> None:
     with st.popover("ⓘ How is this score calculated?", use_container_width=False):
         from lib.core import DELIVERY_FAST_DAYS, DELIVERY_SLOW_DAYS
 
+        from lib.core import CANCEL_WEIGHT
+
         st.markdown("#### Overall score formula")
         st.markdown(
-            "The overall score is a **weighted average** of four criteria, each "
-            "expressed on a 1–5 scale:"
+            "The overall score is a **base score** (a weighted average of four "
+            "criteria, computed from *delivered* orders only) blended with a "
+            "**reliability score** that penalises cancellations:"
         )
+        st.latex(
+            rf"\text{{Overall}} = {1 - CANCEL_WEIGHT:.2f}\cdot\text{{Base}}"
+            rf" + {CANCEL_WEIGHT:.2f}\cdot\text{{Reliability}}"
+        )
+        st.markdown("**Base — four criteria (delivered orders only), 1–5 scale:**")
         st.markdown(
             f"- **Delivery Time** — from the *measured* average days between "
             f"order and delivery: ≤{DELIVERY_FAST_DAYS:.0f} days → 5.0, "
             f"≥{DELIVERY_SLOW_DAYS:.0f} days → 1.0 (linear).\n"
             "- **Price** — from the *measured* average order value in €, scaled "
-            "across all suppliers (cheapest → 5.0, priciest → 1.0).\n"
+            "against category peers (cheapest → 5.0, priciest → 1.0).\n"
             "- **Quality** — average of the supplier's quality ratings (1–5).\n"
             "- **Communication** — average of its communication ratings (1–5)."
         )
         st.latex(
-            r"\text{Overall} = "
+            r"\text{Base} = "
             + " + ".join(
                 rf"{CRITERIA_WEIGHTS[c]:.2f}\cdot\text{{{CRITERIA_LABELS[c]}}}"
                 for c in CRITERIA
             )
         )
-        st.markdown("**Weighting**")
+        st.markdown("**Base weighting**")
         for c in CRITERIA:
             st.markdown(f"- {CRITERIA_LABELS[c]}: **{CRITERIA_WEIGHTS[c]*100:.0f}%**")
+        st.markdown(
+            f"**Reliability ({CANCEL_WEIGHT*100:.0f}%)** — penalises cancellations "
+            "*exponentially*: 0% cancelled → 5.0, and the score falls faster the "
+            "more a supplier cancels (rate = cancelled ÷ (cancelled + delivered))."
+        )
         st.markdown("**Risk bands**")
         for label, lo, hi, color in RISK_BANDS:
             hi_disp = "5.0" if hi > 5 else f"{hi:.1f}"

@@ -172,7 +172,17 @@ display = display.rename(columns={
 })
 ordered = ["Select for drilldown", "Supplier"] + [all_cols[c] for c in visible if c != "supplier_name"]
 ordered = list(dict.fromkeys(ordered))  # de-dupe, keep order
-table = display[ordered]
+# Defensive: only keep columns that were actually built (e.g. "Confidence" is a
+# derived column, not a raw board field) so a rename/schema change can't KeyError.
+ordered = [c for c in ordered if c in display.columns]
+table = display[ordered].reset_index(drop=True)
+
+# The ButtonColumn click reports the row's position in the dataframe *as passed*
+# to st.dataframe (not the user's client-side sort), so resolve the clicked row
+# against this exact frame's Supplier column — which stays correct no matter how
+# the user re-sorts the table visually.
+row_supplier = table["Supplier"].tolist()
+st.session_state["_scorecard_row_supplier"] = row_supplier
 
 
 def _risk_style(row):
@@ -194,12 +204,15 @@ styler = table.style.apply(_risk_style, axis=1).format(
 
 def _open_drilldown() -> None:
     """ButtonColumn callback: map the clicked row to a supplier and navigate.
-    Rows are in the same order as `view`, so row index maps directly."""
+    We resolve the supplier from the table's own Supplier column (captured at
+    render as `_scorecard_row_supplier`) rather than from `view`, so a click
+    still opens the right supplier even after the user re-sorts the table."""
     click = st.session_state.get("drill_click")
+    row_supplier = st.session_state.get("_scorecard_row_supplier", [])
     if click is not None:
         pos = click["row"]
-        if 0 <= pos < len(view):
-            st.session_state["drilldown_supplier"] = view.iloc[pos]["supplier_name"]
+        if 0 <= pos < len(row_supplier):
+            st.session_state["drilldown_supplier"] = row_supplier[pos]
             st.session_state["_go_drilldown"] = True
 
 
