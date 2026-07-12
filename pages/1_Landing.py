@@ -2,10 +2,11 @@
 
 import streamlit as st
 
-from lib.core import build_scoreboard
+from lib.core import build_scoreboard, load_tables
 from lib.ui import kpi_row
 
 board = build_scoreboard()
+orders = load_tables()["orders"]
 
 # --------------------------------------------------------------------------- #
 # Hero
@@ -14,7 +15,7 @@ st.markdown(
     """
     <div class="hero">
         <h1>📊 Supplier Scorecard</h1>
-        <p>Evaluate, compare and monitor your suppliers in one place. Spot risks
+        <p>Evaluate and monitor your suppliers in one place. Spot risks
         early, understand every score, and drill into the detail — from a single
         clean workflow.</p>
     </div>
@@ -41,16 +42,16 @@ n = len(board)
 avg = board["overall_score"].mean()
 high_risk = int((board["risk_level"] == "High").sum())
 countries = board["country"].nunique()
-# Suppliers whose orders are all still open (cancelled / in transit), so no
-# delivery has completed yet — an unfinished-delivery count, not a data error.
-unfinished = int(board["missing_delivery_data"].sum())
+# Unfinished orders: still open (cancelled / in transit), so no delivery has
+# completed yet. Counted at ORDER level to match the label, not per supplier.
+unfinished = int(orders["delivery_date"].isna().sum())
 
 st.subheader("At a glance")
 kpi_row([
     {"label": "Suppliers", "value": n, "sub": f"{countries} countries"},
     {"label": "Avg. score", "value": f"{avg:.2f}", "sub": "weighted, 1–5"},
     {"label": "High risk", "value": high_risk, "sub": "< 2.5 overall"},
-    {"label": "Unfinished deliveries", "value": unfinished, "sub": ""},
+    {"label": "Unfinished deliveries", "value": unfinished, "sub": "cancelled / in transit"},
 ])
 
 st.write("")

@@ -19,7 +19,13 @@ from lib.core import (
     suggest_names,
     weighted_overall,
 )
-from lib.ui import breadcrumb, confidence_badge_html, risk_badge_html, score_info_popover
+from lib.ui import (
+    breadcrumb,
+    confidence_badge_html,
+    risk_badge_html,
+    score_info_popover,
+    special_badge_html,
+)
 
 board = build_scoreboard()
 tables = load_tables()
@@ -53,9 +59,14 @@ threshold = DEFAULT_THRESHOLD
 st.title(supplier)
 meta_l, meta_r = st.columns([3, 2])
 with meta_l:
+    special_badge = (
+        f"{special_badge_html(int(row['num_special_orders']))} &nbsp; "
+        if row.get("has_special_orders", False) else ""
+    )
     st.markdown(
         f"{risk_badge_html(row['risk_level'], prefix='Risk:')} &nbsp; "
         f"{confidence_badge_html(bool(row['low_confidence']), int(row['num_ratings']))} &nbsp; "
+        f"{special_badge}"
         f"**{row['country']}** · {row['category_name']} · "
         f"✉ {row['contact_email']}",
         unsafe_allow_html=True,
@@ -64,6 +75,15 @@ with meta_l:
         st.warning(
             f"⚠ **Low confidence** — this score is based on only "
             f"{int(row['num_ratings'])} rated order(s), so treat it with caution."
+        )
+    if row.get("has_special_orders", False):
+        st.info(
+            f"★ **Special circumstance** — this supplier stepped in on "
+            f"{int(row['num_special_orders'])} order(s) where a high price was "
+            "justified (e.g. the only supplier able to deliver). Those orders are "
+            "**excluded from the price score**, so a low price score here doesn't "
+            "mean they're simply expensive — they're a reliable fallback when no "
+            "one else can deliver."
         )
 with meta_r:
     score_info_popover("drill")
@@ -242,13 +262,16 @@ else:
         "order_id": "Order", "order_date": "Ordered", "delivery_date": "Delivered",
         "delivery_days": "Days", "amount_eur": "Amount (€)", "status": "Status",
         "quality": "Quality", "communication": "Communication",
+        "special_circumstance": "Special",
     })[["Order", "Ordered", "Delivered", "Days", "Amount (€)", "Status",
-        "Quality", "Communication"]]
+        "Special", "Quality", "Communication"]]
     st.dataframe(
         ov.sort_values("Ordered"), use_container_width=True, hide_index=True,
         column_config={
             "Amount (€)": st.column_config.NumberColumn(format="€%.0f"),
             "Days": st.column_config.NumberColumn(format="%d d"),
+            "Special": st.column_config.CheckboxColumn(
+                "Special", help="Special-circumstance order — excluded from the price score."),
         },
     )
     avg_days = sup_orders["delivery_days"].mean()

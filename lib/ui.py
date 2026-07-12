@@ -193,6 +193,18 @@ def confidence_badge_html(low_confidence: bool, num_ratings: int | None = None) 
     )
 
 
+def special_badge_html(num_special: int) -> str:
+    """Blue pill flagging that a supplier has stepped in on special-circumstance
+    orders (e.g. the only one able to deliver). Their justified high prices are
+    excluded from the price score, so this badge explains a low price score."""
+    color = "#2563eb"  # blue
+    label = f"Special circumstance ×{num_special}" if num_special > 1 else "Special circumstance"
+    return (
+        f'<span class="badge" style="background:{color}1a;color:{color};">'
+        f'★ {label}</span>'
+    )
+
+
 def breadcrumb(*parts: str) -> None:
     st.markdown('<div class="crumb">' + " › ".join(parts) + "</div>", unsafe_allow_html=True)
 

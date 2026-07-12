@@ -61,10 +61,9 @@ with tab_manage:
     df = tables[which].copy().reset_index(drop=True)
     editor_key = f"editor_{which}"
 
-    def _autosave(table_name: str, source: pd.DataFrame, key: str) -> None:
-        """Apply the data_editor's pending edits to the source frame and write
-        the CSV immediately. Runs as the editor's on_change callback, so any
-        cell edit / row add / row delete is persisted with no Save button."""
+    def _apply_edits(source: pd.DataFrame, key: str) -> pd.DataFrame:
+        """Fold the data_editor's pending edits (from session state) into a copy
+        of the source frame and return it — without writing anything."""
         state = st.session_state.get(key, {})
         result = source.copy()
 
@@ -82,21 +81,41 @@ with tab_manage:
         deleted = state.get("deleted_rows", [])
         if deleted:
             result = result.drop(index=[int(i) for i in deleted]).reset_index(drop=True)
+        return result
 
-        save_table(table_name, result)
-        st.session_state["_autosave_msg"] = f"Saved to {table_name}.csv ✓"
+    # Count pending (unsaved) edits so the Save button can reflect them.
+    _state = st.session_state.get(editor_key, {})
+    pending = (len(_state.get("edited_rows", {}))
+               + len(_state.get("added_rows", []))
+               + len(_state.get("deleted_rows", [])))
 
     st.caption(
-        f"{len(df)} rows · edits save to **{which}.csv** automatically. "
-        "Add a row with the ＋ at the bottom; use the checkbox + trash to delete."
+        f"{len(df)} rows · edit cells, add rows with ＋, or delete with the "
+        "checkbox + trash. **Changes are not saved until you click Save** — then "
+        f"they're written to **{which}.csv** and persist next time you open the app."
     )
     st.data_editor(
         df, use_container_width=True, num_rows="dynamic", key=editor_key,
         hide_index=True,
-        on_change=_autosave, args=(which, df, editor_key),
     )
-    if st.session_state.pop("_autosave_msg", None):
-        st.success(f"Saved to {which}.csv ✓")
+
+    save_col, status_col = st.columns([1, 3])
+    with save_col:
+        if st.button(
+            f"💾 Save to {which}.csv", type="primary", use_container_width=True,
+            disabled=(pending == 0),
+        ):
+            save_table(which, _apply_edits(df, editor_key))
+            st.session_state["_save_msg"] = f"Saved {pending} change(s) to {which}.csv ✓"
+            st.rerun()
+    with status_col:
+        save_msg = st.session_state.pop("_save_msg", None)
+        if save_msg:
+            st.success(save_msg)
+        elif pending:
+            st.warning(f"⚠ {pending} unsaved change(s) — click Save to persist them.")
+        else:
+            st.caption("No unsaved changes.")
 
     st.divider()
     st.markdown("#### Quick add — supplier")

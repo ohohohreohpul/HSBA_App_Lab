@@ -166,6 +166,20 @@ def load_tables() -> dict[str, pd.DataFrame]:
     else:
         orders["delivery_date"] = pd.NaT
         orders["delivery_days"] = pd.NA
+    # "Special circumstance" flag: an order where a high price is justified (e.g.
+    # the only supplier able to deliver). Such orders are EXCLUDED from the price
+    # score so they don't unfairly drag it down. Coerce to a real bool; default
+    # to False when the column is absent or blank.
+    if "special_circumstance" in orders.columns:
+        orders["special_circumstance"] = (
+            orders["special_circumstance"]
+            .map({True: True, False: False, "True": True, "False": False,
+                  "true": True, "false": False, 1: True, 0: False})
+            .fillna(False)
+            .astype(bool)
+        )
+    else:
+        orders["special_circumstance"] = False
     return {
         "categories": categories,
         "suppliers": suppliers,
@@ -195,7 +209,9 @@ def build_scoreboard() -> pd.DataFrame:
         categories[["category_id", "category_name"]], on="category_id", how="left"
     )
 
-    # Order stats (spend, order count, last order, + measured metrics).
+    # Order stats (spend, order count, last order, delivery metric). total_spend
+    # and num_orders count ALL orders; the price metric is handled separately
+    # below because special-circumstance orders are excluded from it.
     ostats = (
         orders.groupby("supplier_id")
         .agg(
@@ -203,14 +219,25 @@ def build_scoreboard() -> pd.DataFrame:
             total_spend=("amount_eur", "sum"),
             last_order=("order_date", "max"),
             avg_delivery_days=("delivery_days", "mean"),
-            avg_price_eur=("amount_eur", "mean"),
+            num_special_orders=("special_circumstance", "sum"),
         )
         .reset_index()
     )
     board = board.merge(ostats, on="supplier_id", how="left")
 
+    # Average price for scoring uses NON-special orders only. A special order (a
+    # justified high price) neither raises nor lowers the price score.
+    normal_orders = orders[~orders["special_circumstance"]]
+    avg_price = (
+        normal_orders.groupby("supplier_id")["amount_eur"]
+        .mean().rename("avg_price_eur").reset_index()
+    )
+    board = board.merge(avg_price, on="supplier_id", how="left")
+
     board["num_ratings"] = board["num_ratings"].fillna(0).astype(int)
     board["num_orders"] = board["num_orders"].fillna(0).astype(int)
+    board["num_special_orders"] = board["num_special_orders"].fillna(0).astype(int)
+    board["has_special_orders"] = board["num_special_orders"] > 0
     board["total_spend"] = board["total_spend"].fillna(0.0)
 
     # --- Measured → score conversions -------------------------------------- #
@@ -226,16 +253,28 @@ def build_scoreboard() -> pd.DataFrame:
         lambda d: float("nan") if pd.isna(d) else delivery_days_to_score(d)
     )
 
-    # Price: cheaper avg order = higher score, scaled across the observed range
-    # of supplier average prices (cheapest supplier → 5, priciest → 1).
-    valid_price = board["avg_price_eur"].dropna()
-    if len(valid_price):
-        cheap, pricey = valid_price.min(), valid_price.max()
-        board["price"] = board["avg_price_eur"].apply(
+    # Price: cheaper avg order = higher score, scaled PER CATEGORY. Anchors are
+    # the cheapest/priciest supplier *within the same category*, so suppliers only
+    # compete on price against peers selling comparable goods — a logistics
+    # supplier's high price never drags down an electronics supplier and vice
+    # versa. Suppliers with no non-special orders (hence no avg_price_eur) get a
+    # NaN price score, which weighted_overall then excludes and re-normalises.
+    def _price_for_category(group: pd.DataFrame) -> pd.Series:
+        valid = group["avg_price_eur"].dropna()
+        if len(valid) < 2:
+            # 0 or 1 priced supplier in the category → no meaningful spread.
+            # A lone priced supplier is "neutral" (3.0); an empty group stays NaN.
+            return group["avg_price_eur"].apply(
+                lambda v: float("nan") if pd.isna(v) else 3.0
+            )
+        cheap, pricey = valid.min(), valid.max()
+        return group["avg_price_eur"].apply(
             lambda v: _linear_score(v, best=cheap, worst=pricey)
         )
-    else:
-        board["price"] = float("nan")
+
+    board["price"] = (
+        board.groupby("category_name", group_keys=False).apply(_price_for_category)
+    )
 
     # Weighted overall score (delivery & price now from measured metrics).
     # Criteria with no data (e.g. delivery time for a supplier with no delivered
@@ -258,10 +297,17 @@ def build_scoreboard() -> pd.DataFrame:
     return board
 
 
+# Columns computed at load time — never persisted back to the CSV.
+_DERIVED_COLS = {"delivery_days"}
+
+
 def save_table(name: str, df: pd.DataFrame) -> None:
     """Persist a table back to its CSV and clear the caches so the change is
-    picked up on the next rerun. ``name`` is one of the load_tables keys."""
-    df.to_csv(DATA_DIR / f"{name}.csv", index=False)
+    picked up on the next rerun. ``name`` is one of the load_tables keys.
+    Derived columns (e.g. delivery_days) are stripped so they don't leak into
+    the CSV and get re-derived on the next load."""
+    out = df.drop(columns=[c for c in _DERIVED_COLS if c in df.columns])
+    out.to_csv(DATA_DIR / f"{name}.csv", index=False)
     load_tables.clear()
     build_scoreboard.clear()
 
@@ -494,6 +540,18 @@ def run_data_checks() -> list[dict]:
         "severity": "info" if len(unfinished) else "ok",
         "detail": ", ".join(map(str, unfinished["order_id"].head(10))) or "None",
     })
+
+    # Special-circumstance orders: flagged as a justified high price (e.g. only
+    # supplier able to deliver). Excluded from the price score — informational.
+    if "special_circumstance" in orders.columns:
+        special = orders[orders["special_circumstance"]]
+        findings.append({
+            "id": "special_orders",
+            "title": "Special-circumstance orders (excluded from price score)",
+            "count": len(special),
+            "severity": "info" if len(special) else "ok",
+            "detail": ", ".join(map(str, special["order_id"].head(10))) or "None",
+        })
 
     # Low-confidence suppliers: fewer than MIN_RATINGS_FOR_CONFIDENCE rated
     # orders. Counted per supplier (reindexed over all suppliers, so a supplier
