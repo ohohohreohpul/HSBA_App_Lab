@@ -4,16 +4,17 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Supplier Scorecard</title>
-  <meta name="description" content="Editorial supplier evaluation dashboard — scored, ranked and drillable. Static build." />
+  <meta name="description" content="Supplier evaluation dashboard — scored, ranked and drillable, with guided data storytelling." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="wrap">
-      <span class="brand">Supplier Scorecard</span>
+      <span class="brand"><span class="dot"></span>Supplier Scorecard</span>
       <nav class="nav" id="nav">
         <button data-view="overview" class="active">Overview</button>
         <button data-view="scorecards">Scorecards</button>
@@ -23,64 +24,78 @@
   </header>
 
   <main class="wrap">
-    <!-- Overview -->
+    <!-- OVERVIEW -->
     <section class="view active" id="view-overview">
-      <div class="hero">
-        <div class="kicker">Supplier Scorecard</div>
-        <h1 id="hero-head">Loading…</h1>
-        <p class="lead">One scored view of the whole supplier book. Delivery, price, quality,
-          communication and cancellations roll into a single 1–5 score, so the suppliers that
-          need a conversation surface on their own.</p>
+      <div class="card hero">
+        <div>
+          <span class="kicker">Supplier book · at a glance</span>
+          <h1 id="hero-head">Loading…</h1>
+          <p class="lead" id="hero-lead">Delivery, price, quality, communication and cancellations
+            roll into one 1–5 score, so the suppliers that need a conversation surface on their own.</p>
+          <div class="hero-cta">
+            <button class="btn primary" data-view="scorecards">Explore scorecards</button>
+            <button class="btn ghost" data-view="analytics">See the analytics</button>
+          </div>
+        </div>
+        <div class="hero-gauge">
+          <div id="hero-gauge" style="width:100%;max-width:280px"></div>
+          <p class="cap" id="hero-gauge-cap"></p>
+        </div>
       </div>
-      <div class="stat-grid" id="story-stats"></div>
-      <div>
-        <button class="btn primary" data-view="scorecards">Open scorecards</button>
-        <button class="btn" data-view="analytics">View analytics</button>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="section-head"><h2>Where the risk sits</h2>
+        <p>The two views that decide where to look first.</p></div>
+      <div class="grid two">
+        <div class="card chart-card" id="ov-risk"></div>
+        <div class="card chart-card" id="ov-dist"></div>
       </div>
     </section>
 
-    <!-- Scorecards -->
+    <!-- SCORECARDS -->
     <section class="view" id="view-scorecards">
-      <div class="crumb">Home / Scorecards</div>
+      <div class="crumb">Overview / Scorecards</div>
       <h1>Supplier scorecards</h1>
-      <div class="toolbar">
-        <label class="field"><span class="l">Search</span>
-          <input type="text" id="search" placeholder="Type a name" autocomplete="off" /></label>
-        <label class="field"><span class="l">Country</span><select id="f-country"></select></label>
-        <label class="field"><span class="l">Category</span><select id="f-category"></select></label>
-        <label class="field"><span class="l">Risk</span><select id="f-risk"></select></label>
+      <div class="card stack" style="margin-top:20px">
+        <div class="toolbar">
+          <label class="field"><span class="l">Search</span>
+            <input type="text" id="search" placeholder="Type a name" autocomplete="off" /></label>
+          <label class="field"><span class="l">Country</span><select id="f-country"></select></label>
+          <label class="field"><span class="l">Category</span><select id="f-category"></select></label>
+          <label class="field"><span class="l">Risk</span><select id="f-risk"></select></label>
+        </div>
+        <div class="toggles">
+          <label><input type="checkbox" id="t-below" /> Only below the line</label>
+          <label><input type="checkbox" id="t-lowconf" /> Only low confidence</label>
+        </div>
+        <div class="count-note" id="count-note"></div>
+        <div class="tbl-wrap"><table id="board"><thead></thead><tbody></tbody></table></div>
       </div>
-      <div class="toggles">
-        <label><input type="checkbox" id="t-below" /> Only below the line</label>
-        <label><input type="checkbox" id="t-lowconf" /> Only low confidence</label>
-      </div>
-      <div class="count-note" id="count-note"></div>
-      <div class="tbl-wrap"><table id="board"><thead></thead><tbody></tbody></table></div>
     </section>
 
-    <!-- Analytics -->
+    <!-- ANALYTICS -->
     <section class="view" id="view-analytics">
-      <div class="crumb">Home / Analytics</div>
-      <h1>Analytics</h1>
-      <div class="stat-grid" id="an-stats"></div>
-      <div class="grid-2 section">
-        <div class="chart" id="chart-risk"></div>
-        <div class="chart" id="chart-hist"></div>
+      <div class="crumb">Overview / Analytics</div>
+      <h1>Portfolio analytics</h1>
+      <div class="kpis" id="an-kpis" style="margin-top:20px"></div>
+      <div class="grid two" style="margin-top:22px">
+        <div class="card chart-card" id="an-risk"></div>
+        <div class="card chart-card" id="an-dist"></div>
       </div>
-      <div class="grid-2 section">
-        <div class="chart" id="chart-country"></div>
-        <div class="chart" id="chart-category"></div>
+      <div class="grid two" style="margin-top:18px">
+        <div class="card chart-card" id="an-country"></div>
+        <div class="card chart-card" id="an-category"></div>
       </div>
-      <div class="section chart" id="chart-heat"></div>
+      <div class="card chart-card" id="an-heat" style="margin-top:18px"></div>
     </section>
 
     <div class="footer">
-      Supplier Scorecard &middot; <strong>Innovation Management M.Sc.</strong> &middot;
-      HSBA Hamburg School of Business Administration &middot; static build
+      Supplier Scorecard · <strong>Innovation Management M.Sc.</strong> ·
+      HSBA Hamburg School of Business Administration · static build
     </div>
   </main>
 
-  <!-- Drilldown -->
   <div class="overlay" id="overlay"></div>
   <aside class="drawer" id="drawer" aria-hidden="true"></aside>
 
