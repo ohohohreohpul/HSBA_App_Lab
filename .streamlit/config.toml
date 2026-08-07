@@ -1,0 +1,11 @@
+# Editorial / Swiss theme: ink on paper. Flat, no gradients, no decorative
+# colour. The only meaningful colour in the app is the risk palette
+# (red / amber / green), applied semantically. Locked to light so the custom
+# styling (lib/theme.py) renders consistently for every viewer.
+[theme]
+base = "light"
+primaryColor = "#1a1a1a"           # ink — used for controls/selection (not purple)
+backgroundColor = "#f5f4f1"        # warm paper
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1a1a1a"
+font = "sans serif"
