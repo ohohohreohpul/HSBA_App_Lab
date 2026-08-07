@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Supplier Scorecard</title>
+  <meta name="description" content="Editorial supplier evaluation dashboard — scored, ranked and drillable. Static build." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <span class="brand">Supplier Scorecard</span>
+      <nav class="nav" id="nav">
+        <button data-view="overview" class="active">Overview</button>
+        <button data-view="scorecards">Scorecards</button>
+        <button data-view="analytics">Analytics</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Overview -->
+    <section class="view active" id="view-overview">
+      <div class="hero">
+        <div class="kicker">Supplier Scorecard</div>
+        <h1 id="hero-head">Loading…</h1>
+        <p class="lead">One scored view of the whole supplier book. Delivery, price, quality,
+          communication and cancellations roll into a single 1–5 score, so the suppliers that
+          need a conversation surface on their own.</p>
+      </div>
+      <div class="stat-grid" id="story-stats"></div>
+      <div>
+        <button class="btn primary" data-view="scorecards">Open scorecards</button>
+        <button class="btn" data-view="analytics">View analytics</button>
+      </div>
+    </section>
+
+    <!-- Scorecards -->
+    <section class="view" id="view-scorecards">
+      <div class="crumb">Home / Scorecards</div>
+      <h1>Supplier scorecards</h1>
+      <div class="toolbar">
+        <label class="field"><span class="l">Search</span>
+          <input type="text" id="search" placeholder="Type a name" autocomplete="off" /></label>
+        <label class="field"><span class="l">Country</span><select id="f-country"></select></label>
+        <label class="field"><span class="l">Category</span><select id="f-category"></select></label>
+        <label class="field"><span class="l">Risk</span><select id="f-risk"></select></label>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="t-below" /> Only below the line</label>
+        <label><input type="checkbox" id="t-lowconf" /> Only low confidence</label>
+      </div>
+      <div class="count-note" id="count-note"></div>
+      <div class="tbl-wrap"><table id="board"><thead></thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- Analytics -->
+    <section class="view" id="view-analytics">
+      <div class="crumb">Home / Analytics</div>
+      <h1>Analytics</h1>
+      <div class="stat-grid" id="an-stats"></div>
+      <div class="grid-2 section">
+        <div class="chart" id="chart-risk"></div>
+        <div class="chart" id="chart-hist"></div>
+      </div>
+      <div class="grid-2 section">
+        <div class="chart" id="chart-country"></div>
+        <div class="chart" id="chart-category"></div>
+      </div>
+      <div class="section chart" id="chart-heat"></div>
+    </section>
+
+    <div class="footer">
+      Supplier Scorecard &middot; <strong>Innovation Management M.Sc.</strong> &middot;
+      HSBA Hamburg School of Business Administration &middot; static build
+    </div>
+  </main>
+
+  <!-- Drilldown -->
+  <div class="overlay" id="overlay"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true"></aside>
+
+  <script src="./app.js"></script>
+</body>
+</html>

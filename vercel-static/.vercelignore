@@ -1,0 +1,4 @@
+# Keep the deploy purely static: the Python builder must NOT be uploaded, or
+# Vercel's Python runtime would try to treat it as a serverless function.
+build_static.py
+__pycache__/
