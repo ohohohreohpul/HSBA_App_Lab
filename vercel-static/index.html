@@ -97,7 +97,10 @@
   </main>
 
   <div class="overlay" id="overlay"></div>
-  <aside class="drawer" id="drawer" aria-hidden="true"></aside>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Supplier detail" aria-hidden="true"></aside>
+
+  <div class="tip" id="tip" role="tooltip"></div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <script src="./app.js"></script>
 </body>
