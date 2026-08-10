@@ -33,12 +33,12 @@ def render_hero(headline: str, lead: str, kicker: str = "") -> None:
             <p class="hero-lead">{html.escape(lead)}</p>
         </div>
         <style>
-        .hero-ed {{ border-top: 2px solid var(--rule); padding-top: 18px; margin-bottom: 8px; }}
-        .hero-kicker {{ font-family: var(--font-mono); text-transform: uppercase;
-            letter-spacing: .14em; font-size: .74rem; color: var(--muted); margin-bottom: 14px; }}
-        .hero-head {{ max-width: 20ch; margin: 0 0 14px; }}
-        .hero-lead {{ font-family: var(--font-body); font-size: 1.08rem; line-height: 1.55;
-            color: var(--ink-2); max-width: 62ch; margin: 0; }}
+        .hero-ed {{ padding: 4px 0 6px; margin-bottom: 8px; }}
+        .hero-kicker {{ font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+            font-size: .72rem; color: hsl(var(--muted-foreground)); margin-bottom: 12px; }}
+        .hero-head {{ max-width: 20ch; margin: 0 0 12px; }}
+        .hero-lead {{ font-size: 1.05rem; line-height: 1.6; color: hsl(var(--muted-foreground));
+            max-width: 60ch; margin: 0; }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -65,7 +65,7 @@ def _sparkline_svg(values: list[float], width: int = 120, height: int = 30) -> s
         f'viewBox="0 0 {width} {height}" fill="none" '
         f'preserveAspectRatio="none" aria-hidden="true">'
         f'<polyline points="{" ".join(coords)}" '
-        f'stroke="var(--ink)" stroke-width="1.25" '
+        f'stroke="#18181b" stroke-width="1.5" '
         f'stroke-linejoin="round" stroke-linecap="round"/></svg>'
     )
 

@@ -82,12 +82,10 @@ st.markdown('<div class="crumb">The workflow</div>', unsafe_allow_html=True)
 st.markdown(
     """
     <style>
-    .wf-row { border-top: 1px solid var(--line); padding: 18px 0 6px; }
-    .wf-num { font-family: var(--font-mono); color: var(--muted); font-size: .78rem; }
-    .wf-title { font-family: var(--font-display); font-weight: 600; font-size: 1.25rem;
-        margin-left: 12px; }
-    .wf-desc { font-family: var(--font-body); color: var(--ink-2); margin-top: 6px;
-        max-width: 60ch; line-height: 1.5; }
+    .wf-row { border-top: 1px solid hsl(var(--border)); padding: 18px 0 6px; }
+    .wf-num { color: hsl(var(--muted-foreground)); font-size: .78rem; font-weight: 600; }
+    .wf-title { font-weight: 600; font-size: 1.15rem; margin-left: 12px; letter-spacing: -0.01em; }
+    .wf-desc { color: hsl(var(--muted-foreground)); margin-top: 6px; max-width: 60ch; line-height: 1.5; }
     </style>
     """,
     unsafe_allow_html=True,
