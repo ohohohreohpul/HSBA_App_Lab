@@ -23,7 +23,7 @@ breadcrumb("Home", "Admin")
 # Login gate — nothing below renders until the session is authenticated.
 # --------------------------------------------------------------------------- #
 if not is_admin():
-    st.title("🔐 Staff access")
+    st.title("Staff access")
     st.caption("Restricted area. Enter the access code to continue.")
     with st.form("admin_login"):
         code = st.text_input("Access code", type="password")
@@ -41,7 +41,7 @@ if not is_admin():
 # --------------------------------------------------------------------------- #
 top_l, top_r = st.columns([4, 1])
 with top_l:
-    st.title("🔐 Admin — Database Management")
+    st.title("Admin — Database Management")
 with top_r:
     st.write("")
     if st.button("Log out", use_container_width=True):
@@ -51,7 +51,7 @@ with top_r:
 
 tables = load_tables()
 tab_manage, tab_checks, tab_bulk = st.tabs(
-    ["📝 Manage data", "🩺 Integrity checks", "📦 Bulk import / export"]
+    ["Manage data", "Integrity checks", "Bulk import / export"]
 )
 
 # =========================================================================== #
@@ -112,18 +112,18 @@ with tab_manage:
     save_col, status_col = st.columns([1, 3])
     with save_col:
         if st.button(
-            f"💾 Save to {which}.csv", type="primary", use_container_width=True,
+            f"Save to {which}.csv", type="primary", use_container_width=True,
             disabled=(pending == 0),
         ):
             save_table(which, _apply_edits(df, editor_key))
-            st.session_state["_save_msg"] = f"Saved {pending} change(s) to {which}.csv ✓"
+            st.session_state["_save_msg"] = f"Saved {pending} change(s) to {which}.csv"
             st.rerun()
     with status_col:
         save_msg = st.session_state.pop("_save_msg", None)
         if save_msg:
             st.success(save_msg)
         elif pending:
-            st.warning(f"⚠ {pending} unsaved change(s) — click Save to persist them.")
+            st.warning(f"{pending} unsaved change(s) — click Save to persist them.")
         else:
             st.caption("No unsaved changes.")
 
@@ -160,7 +160,7 @@ with tab_manage:
         to_del = st.selectbox("Select supplier to delete",
                               tables["suppliers"]["supplier_name"])
     with dcol2:
-        if st.button("🗑 Delete", use_container_width=True):
+        if st.button("Delete", use_container_width=True):
             sup = tables["suppliers"]
             save_table("suppliers", sup[sup["supplier_name"] != to_del])
             st.warning(f"Deleted {to_del}. (Its orders/ratings are now orphaned — "
@@ -174,19 +174,19 @@ with tab_checks:
     st.caption("Automated scan for missing values, duplicates, broken references "
                "(orders & ratings), out-of-range ratings, invalid amounts/dates, "
                "and unfinished/low-confidence data.")
-    if st.button("🔄 Re-run checks", type="primary"):
+    if st.button("Re-run checks", type="primary"):
         st.rerun()
 
     findings = run_data_checks()
     clean = all(f["severity"] == "ok" for f in findings)
     if clean:
-        st.success("✅ All checks passed — no issues found.")
+        st.success("All checks passed — no issues found.")
 
-    icon = {"ok": "✅", "info": "🛈", "warning": "⚠️", "error": "⛔"}
+    label = {"ok": "OK", "info": "INFO", "warning": "WARN", "error": "ERROR"}
     for f in findings:
         with st.container(border=True):
             c1, c2 = st.columns([4, 1])
-            c1.markdown(f"{icon[f['severity']]} **{f['title']}** — "
+            c1.markdown(f"`{label[f['severity']]}` **{f['title']}** — "
                         f"{f['count']} affected")
             if f["count"]:
                 c1.caption(f["detail"])
@@ -240,7 +240,7 @@ with tab_bulk:
     ecol = st.columns(4)
     for i, (nm, d) in enumerate(load_tables().items()):
         ecol[i % 4].download_button(
-            f"⬇ {nm}.csv", d.to_csv(index=False).encode(),
+            f"{nm}.csv", d.to_csv(index=False).encode(),
             f"{nm}.csv", "text/csv", use_container_width=True, key=f"exp_{nm}",
         )
     # Full workbook.
@@ -248,7 +248,7 @@ with tab_bulk:
     with pd.ExcelWriter(xbuf, engine="openpyxl") as xw:
         for nm, d in load_tables().items():
             d.to_excel(xw, sheet_name=nm, index=False)
-    st.download_button("⬇ Full workbook (.xlsx)", xbuf.getvalue(),
+    st.download_button("Full workbook (.xlsx)", xbuf.getvalue(),
                        "supplier_db.xlsx", key="exp_all")
 
     st.divider()
@@ -263,7 +263,7 @@ with tab_bulk:
         got = set(new_df.columns)
         if expected != got:
             st.error(f"Column mismatch. Expected {sorted(expected)}, got {sorted(got)}.")
-        elif st.button("⚠️ Replace table", type="primary"):
+        elif st.button("Replace table", type="primary"):
             save_table(imp_table, new_df)
             st.success(f"Replaced {imp_table} with {len(new_df)} rows.")
             st.rerun()

@@ -15,10 +15,11 @@ from lib.core import (
 )
 from lib.ui import breadcrumb, kpi_row
 
-# Chart palette — kept in sync with the risk colours used elsewhere so a
-# "High" supplier is the same red on every page.
-RISK_COLORS = {"High": "#ef4444", "Medium": "#f59e0b", "Low": "#10b981"}
-ACCENT = "#4f46e5"
+# Chart palette — editorial. Data marks are ink; the only meaningful colour is
+# the risk palette, kept in sync with lib.theme so "High" is the same red
+# everywhere.
+RISK_COLORS = {"High": "#c0392b", "Medium": "#b07400", "Low": "#2f7d55"}
+ACCENT = "#1a1a1a"
 
 # Data source: the scored board — one row per supplier.
 board = build_scoreboard()

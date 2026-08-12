@@ -1,9 +1,10 @@
-# Lock the dashboard to a light theme so custom styling (styles.py) renders
-# consistently for every viewer, regardless of their OS/browser dark mode.
+# shadcn/ui-inspired theme: neutral zinc palette, near-black primary, white
+# surfaces on a faint muted page. Locked to light so the custom styling
+# (lib/theme.py) renders consistently for every viewer.
 [theme]
 base = "light"
-primaryColor = "#4f46e5"
-backgroundColor = "#fbfbfe"
+primaryColor = "#18181b"           # zinc-900 (shadcn primary)
+backgroundColor = "#fafafa"        # zinc-50 page
 secondaryBackgroundColor = "#ffffff"
-textColor = "#1e293b"
+textColor = "#09090b"              # zinc-950
 font = "sans serif"

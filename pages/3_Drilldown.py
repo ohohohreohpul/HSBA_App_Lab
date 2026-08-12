@@ -42,7 +42,7 @@ breadcrumb("Home", "Scorecards", "Drilldown")
 preselect = st.session_state.pop("drilldown_supplier", None)
 sc1, sc2 = st.columns([2, 3])
 with sc1:
-    q = st.text_input("🔍 Find supplier", placeholder="Type a name (typos ok)…")
+    q = st.text_input("Find supplier", placeholder="Type a name (typos ok)")
 options = names
 if q:
     sugg = suggest_names(q, names, limit=15)
@@ -70,17 +70,17 @@ with meta_l:
         f"{confidence_badge_html(bool(row['low_confidence']), int(row['num_ratings']))} &nbsp; "
         f"{special_badge}"
         f"**{row['country']}** · {row['category_name']} · "
-        f"✉ {row['contact_email']}",
+        f"{row['contact_email']}",
         unsafe_allow_html=True,
     )
     if row["low_confidence"]:
         st.warning(
-            f"⚠ **Low confidence** — this score is based on only "
+            f"**Low confidence** — this score is based on only "
             f"{int(row['num_ratings'])} rated order(s), so treat it with caution."
         )
     if row.get("has_special_orders", False):
         st.info(
-            f"★ **Special circumstance** — this supplier stepped in on "
+            f"**Special circumstance** — this supplier stepped in on "
             f"{int(row['num_special_orders'])} order(s) where a high price was "
             "justified (e.g. the only supplier able to deliver). Those orders are "
             "**excluded from the price score**, so a low price score here doesn't "
@@ -113,7 +113,7 @@ mc5.metric("Last order", last.date().isoformat() if pd.notna(last) else "—")
 # Flag a poor cancellation record explicitly.
 if pd.notna(crate) and crate >= 0.25:
     st.warning(
-        f"⚠ **High cancellation rate** — {n_canc} of "
+        f"**High cancellation rate** — {n_canc} of "
         f"{n_canc + int(row['num_delivered'])} resolved orders were cancelled "
         f"({crate*100:.0f}%). This lowers the overall score via the reliability "
         f"component (reliability score {row['cancel_score']:.2f}/5)."
@@ -200,7 +200,7 @@ with left:
     )
 
     if row.get("missing_delivery_data", False):
-        st.caption("ℹ No delivered orders yet — there is no delivery history to "
+        st.caption("No delivered orders yet — there is no delivery history to "
                    "measure, so delivery time is **excluded** from the overall "
                    "score. The remaining criteria are re-weighted to fill the gap.")
 
@@ -208,7 +208,7 @@ with right:
     st.subheader("Threshold violations")
     violations = comp[comp["Score"] < threshold]
     if violations.empty:
-        st.success(f"✅ No criterion below the {threshold:.1f} threshold.")
+        st.success(f"No criterion below the {threshold:.1f} threshold.")
     else:
         for r in violations.itertuples():
             st.error(f"**{r.Criterion}**: {r.Score:.2f} (below {threshold:.1f})")
@@ -314,7 +314,7 @@ if sup_all["order_date"].notna().any():
             y=alt.Y("overall:Q", scale=alt.Scale(domain=[1, 5]), title="Avg. overall"),
             color=alt.Color(
                 "series:N", title=None,
-                scale=alt.Scale(range=["#4f46e5"]),
+                scale=alt.Scale(range=["#1a1a1a"]),
                 legend=alt.Legend(orient="top"),
             ),
             tooltip=[alt.Tooltip("quarter:N", title="Quarter"),

@@ -35,9 +35,9 @@ with h_right:
 # fuzzy-filters the table, so you can also just type without picking.
 # --------------------------------------------------------------------------- #
 typed = st.text_input(
-    "🔍 Search suppliers",
+    "Search suppliers",
     key="sc_search",
-    placeholder="Type a name — typos are fine (e.g. 'shezen micro')",
+    placeholder="Type a name, typos are fine (e.g. 'shezen micro')",
 )
 
 # A picked suggestion takes precedence over the raw typed text.
@@ -60,7 +60,7 @@ if typed:
 if picked:
     pc1, pc2 = st.columns([4, 1])
     pc1.markdown(f"Selected: **{picked}**")
-    if pc2.button("✕ Clear", key="clear_pick", use_container_width=True):
+    if pc2.button("Clear", key="clear_pick", use_container_width=True):
         del st.session_state["sc_picked"]
         st.rerun()
 
@@ -148,7 +148,7 @@ all_cols = {
 visible = ["supplier_name", "country", "category_name", "overall_score",
            "risk_level", "confidence", "num_orders", "total_spend"]
 
-st.caption("🔴 red = below threshold · 🟠 Confidence = \"Low\" means fewer than "
+st.caption("Red cell = below threshold. Confidence \"Low\" means fewer than "
            f"{MIN_RATINGS_FOR_CONFIDENCE} rated orders, so the score is less reliable.")
 
 # --------------------------------------------------------------------------- #
@@ -236,7 +236,7 @@ if st.session_state.pop("_go_drilldown", False):
 
 # Flagged list for fast scanning.
 if n_under:
-    with st.expander(f"⚠️ {n_under} supplier(s) below the {threshold:.1f} threshold"):
+    with st.expander(f"{n_under} supplier(s) below the {threshold:.1f} threshold"):
         flagged = view.loc[view["overall_score"] < threshold,
                            ["supplier_name", "country", "overall_score", "risk_level"]]
         for _, r in flagged.sort_values("overall_score").iterrows():

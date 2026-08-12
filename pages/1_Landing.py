@@ -1,92 +1,120 @@
 """Landing page — entry point into the platform."""
 
+from __future__ import annotations
+
+import numpy as np
 import streamlit as st
 
-from lib.core import build_scoreboard, load_tables
-from lib.ui import kpi_row
+from lib.core import DEFAULT_THRESHOLD, build_scoreboard, load_tables
+from lib.story import render_hero, render_story_stats
 
 board = build_scoreboard()
 orders = load_tables()["orders"]
 
 # --------------------------------------------------------------------------- #
-# Hero
+# Figures behind the story
 # --------------------------------------------------------------------------- #
-st.markdown(
-    """
-    <div class="hero">
-        <h1>📊 Supplier Scorecard</h1>
-        <p>Evaluate and monitor your suppliers in one place. Spot risks
-        early, understand every score, and drill into the detail — from a single
-        clean workflow.</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-st.write("")
+n = len(board)
+avg = board["overall_score"].mean()
+countries = board["country"].nunique()
+high_risk = int((board["risk_level"] == "High").sum())
+n_below = int((board["overall_score"] < DEFAULT_THRESHOLD).sum())
+cancelled = int((orders["status"] == "Cancelled").sum())
+in_transit = int((orders["status"] == "In Transit").sum())
+total_orders = len(orders)
 
-# Primary CTA → the main working page.
-c1, c2, c3 = st.columns([1.2, 1, 3])
+# Worst supplier (for the high-risk "so what" line) and a score-distribution
+# series for the avg-score sparkline — both straight from the data, no invention.
+worst = board.loc[board["overall_score"].idxmin()]
+dist = np.histogram(board["overall_score"].dropna(), bins=12, range=(1, 5))[0].tolist()
+
+# --------------------------------------------------------------------------- #
+# Hero — states the finding, not a slogan
+# --------------------------------------------------------------------------- #
+if n_below:
+    headline = f"{n} suppliers. {n_below} sit below the line."
+else:
+    headline = f"{n} suppliers. None below the line."
+render_hero(
+    headline,
+    "One scored view of the whole supplier book. Delivery, price, quality, "
+    "communication and cancellations roll into a single 1–5 score, so the "
+    "suppliers that need a conversation surface on their own.",
+    kicker="Supplier Scorecard",
+)
+
+c1, c2, _ = st.columns([1.1, 1, 3])
 with c1:
-    if st.button("Open Scorecards  →", type="primary", use_container_width=True):
+    if st.button("Open scorecards", type="primary", use_container_width=True):
         st.switch_page("pages/2_Scorecards.py")
 with c2:
-    if st.button("View Analytics", use_container_width=True):
+    if st.button("View analytics", use_container_width=True):
         st.switch_page("pages/4_Analytics.py")
 
 st.write("")
 
 # --------------------------------------------------------------------------- #
-# Quick-summary KPIs
+# Story stats — each figure carries its own "so what"
 # --------------------------------------------------------------------------- #
-n = len(board)
-avg = board["overall_score"].mean()
-high_risk = int((board["risk_level"] == "High").sum())
-countries = board["country"].nunique()
-# Unfinished orders, split by status (order-level counts, live from the data).
-cancelled = int((orders["status"] == "Cancelled").sum())
-in_transit = int((orders["status"] == "In Transit").sum())
-
-st.subheader("At a glance")
-kpi_row([
-    {"label": "Suppliers", "value": n, "sub": f"{countries} countries"},
-    {"label": "Avg. score", "value": f"{avg:.2f}", "sub": "weighted, 1–5"},
-    {"label": "High risk suppliers", "value": high_risk, "sub": "< 2.5 overall"},
-    {"label": "Cancelled", "value": cancelled, "sub": "orders"},
-    {"label": "In transit", "value": in_transit, "sub": "orders"},
+above = avg - DEFAULT_THRESHOLD
+render_story_stats([
+    {"label": "Suppliers", "value": f"{n}", "delta": f"{countries} countries"},
+    {"label": "Avg. score", "value": f"{avg:.2f}",
+     "delta": f"{above:+.2f} vs the {DEFAULT_THRESHOLD:.1f} review line",
+     "dir": "up" if above >= 0 else "down", "spark": dist},
+    {"label": "Below the line", "value": f"{n_below}",
+     "delta": f"{n_below / n * 100:.0f}% of the book",
+     "dir": "down" if n_below else "up"},
+    {"label": "High risk", "value": f"{high_risk}",
+     "delta": f"worst {worst['supplier_name']} {worst['overall_score']:.2f}",
+     "dir": "down" if high_risk else "up"},
+    {"label": "Cancelled", "value": f"{cancelled}",
+     "delta": f"{cancelled / total_orders * 100:.0f}% of {total_orders} orders"},
 ])
 
 st.write("")
 st.divider()
 
 # --------------------------------------------------------------------------- #
-# What you can do — short overview of the workflow
+# The workflow — an editorial index, not a row of equal cards
 # --------------------------------------------------------------------------- #
-st.subheader("The workflow")
-w1, w2, w3 = st.columns(3)
-with w1:
-    st.markdown("#### 📋 Scorecards")
-    st.write(
-        "One powerful table of every supplier. Filter, fuzzy-search, sort and "
-        "export. Risky suppliers are highlighted so problems jump out."
-    )
-    if st.button("Go to Scorecards", key="w_score", use_container_width=True):
-        st.switch_page("pages/2_Scorecards.py")
-with w2:
-    st.markdown("#### 🔎 Drilldown")
-    st.write(
-        "Open any supplier for the full profile: score components, trends over "
-        "time, orders, threshold violations and recommendations."
-    )
-    if st.button("Go to Drilldown", key="w_drill", use_container_width=True):
-        st.switch_page("pages/3_Drilldown.py")
-with w3:
-    st.markdown("#### 📈 Analytics")
-    st.write(
-        "Portfolio-level view: risk distribution, country and category "
-        "breakdowns, and score trends — all filterable."
-    )
-    if st.button("Go to Analytics", key="w_ana", use_container_width=True):
-        st.switch_page("pages/4_Analytics.py")
+st.markdown('<div class="crumb">The workflow</div>', unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+    .wf-row { border-top: 1px solid hsl(var(--border)); padding: 18px 0 6px; }
+    .wf-num { color: hsl(var(--muted-foreground)); font-size: .78rem; font-weight: 600; }
+    .wf-title { font-weight: 600; font-size: 1.15rem; margin-left: 12px; letter-spacing: -0.01em; }
+    .wf-desc { color: hsl(var(--muted-foreground)); margin-top: 6px; max-width: 60ch; line-height: 1.5; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+steps = [
+    ("01", "Scorecards", "Every supplier in one sortable, searchable table. Filter, "
+     "fuzzy-search and export. Anything below the line is flagged in place.",
+     "pages/2_Scorecards.py", "wf_score"),
+    ("02", "Drilldown", "One supplier in full: score components, the trend over time, "
+     "the orders behind it, and where it breaches the line.",
+     "pages/3_Drilldown.py", "wf_drill"),
+    ("03", "Analytics", "The book from above: risk mix, country and category "
+     "breakdowns, and how scores are distributed.",
+     "pages/4_Analytics.py", "wf_ana"),
+]
+for num, title, desc, page, key in steps:
+    text_col, btn_col = st.columns([8, 2])
+    with text_col:
+        st.markdown(
+            f'<div class="wf-row"><span class="wf-num">{num}</span>'
+            f'<span class="wf-title">{title}</span>'
+            f'<div class="wf-desc">{desc}</div></div>',
+            unsafe_allow_html=True,
+        )
+    with btn_col:
+        st.write("")
+        if st.button("Open", key=key, use_container_width=True):
+            st.switch_page(page)
 
 # --------------------------------------------------------------------------- #
 # Footer
@@ -94,7 +122,7 @@ with w3:
 st.markdown(
     """
     <div class="app-footer">
-        Supplier Scorecard · <strong>Innovation Management M.Sc.</strong><br>
+        Supplier Scorecard &middot; <strong>Innovation Management M.Sc.</strong><br>
         HSBA Hamburg School of Business Administration
     </div>
     """,
