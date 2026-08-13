@@ -46,6 +46,12 @@ html, body, [class*="css"] { font-family: var(--font); }
 [data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"] * { color: hsl(var(--foreground)); }
 [data-testid="stCaptionContainer"], .stApp small { color: hsl(var(--muted-foreground)) !important; }
 [data-baseweb="select"] *, [data-testid="stSlider"] * { color: hsl(var(--foreground)) !important; }
+/* Selected filter chips (multiselect tags): near-black fill, so the text and
+   the remove-icon must be white — overrides the dark select text above. */
+[data-baseweb="select"] [data-baseweb="tag"],
+[data-baseweb="select"] [data-baseweb="tag"] * { color: hsl(var(--primary-foreground)) !important; }
+[data-baseweb="tag"] { background: hsl(var(--primary)) !important; }
+[data-baseweb="tag"] svg { fill: hsl(var(--primary-foreground)) !important; }
 [data-testid="stDataFrame"] * { color: hsl(var(--foreground)); }
 .tnum { font-variant-numeric: tabular-nums; }
 
@@ -98,15 +104,24 @@ h3 { font-size: 1.05rem; }
 [data-testid="stDataFrame"] { border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
 
 /* Buttons: default = outline/secondary, primary = solid ---------------------- */
-.stButton > button { border-radius: calc(var(--radius) - 2px); border: 1px solid hsl(var(--border));
+/* Covers every button flavour: st.button (.stButton), st.form_submit_button
+   (.stFormSubmitButton), st.download_button (.stDownloadButton). */
+.stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {
+    border-radius: calc(var(--radius) - 2px); border: 1px solid hsl(var(--border));
     background: hsl(var(--card)); color: hsl(var(--foreground)); font-weight: 500; font-size: .9rem;
     box-shadow: var(--shadow-sm); transition: background .15s ease, border-color .15s ease, transform .1s ease; }
-.stButton > button:hover { background: hsl(var(--accent)); border-color: hsl(var(--border)); }
-.stButton > button:hover * { color: hsl(var(--foreground)) !important; }
-.stButton > button:active { transform: translateY(1px); }
-.stButton > button[kind="primary"] { background: hsl(var(--primary)); border-color: hsl(var(--primary)); }
-.stButton > button[kind="primary"] *, .stButton > button[kind="primary"]:hover * { color: hsl(var(--primary-foreground)) !important; }
-.stButton > button[kind="primary"]:hover { background: hsl(240 5.9% 16%); }
+.stButton > button:hover, .stFormSubmitButton > button:hover, .stDownloadButton > button:hover {
+    background: hsl(var(--accent)); border-color: hsl(var(--border)); }
+.stButton > button:hover *, .stFormSubmitButton > button:hover *, .stDownloadButton > button:hover * {
+    color: hsl(var(--foreground)) !important; }
+.stButton > button:active, .stFormSubmitButton > button:active, .stDownloadButton > button:active {
+    transform: translateY(1px); }
+/* Solid primary — kind^= matches "primary", "primaryFormSubmit" etc., so black
+   buttons always get white text no matter which widget rendered them. */
+button[kind^="primary"] { background: hsl(var(--primary)) !important; border-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important; }
+button[kind^="primary"] *, button[kind^="primary"]:hover * { color: hsl(var(--primary-foreground)) !important; }
+button[kind^="primary"]:hover { background: hsl(240 5.9% 16%) !important; }
 
 /* Inputs: border + focus ring ----------------------------------------------- */
 .stTextInput input, [data-baseweb="select"] > div, [data-baseweb="input"] > div {
