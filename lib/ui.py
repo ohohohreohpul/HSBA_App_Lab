@@ -42,9 +42,12 @@ def kpi_row(items: list[dict]) -> None:
 
 
 def _tag(text: str, color: str) -> str:
-    """A flat, squared status tag: coloured text + hairline border, no fill, no
-    glyph. Editorial, and lets the semantic colour do the work."""
-    return f'<span class="badge" style="color:{color};">{text}</span>'
+    """A shadcn-style badge: soft tinted background, matching border, coloured
+    text. The semantic colour carries the meaning; the tint keeps it quiet."""
+    return (
+        f'<span class="badge" style="color:{color};background:{color}14;'
+        f'border-color:{color}33;">{text}</span>'
+    )
 
 
 def risk_badge_html(level: str, prefix: str = "") -> str:
