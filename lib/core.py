@@ -191,40 +191,40 @@ def explain_formula() -> dict:
 # --------------------------------------------------------------------------- #
 # Data loading & scoring
 # --------------------------------------------------------------------------- #
-@st.cache_data(show_spinner=False)
-def load_tables() -> dict[str, pd.DataFrame]:
+@st.cache_data(show_spinner=False)  # Streamlit caches the return value; no spinner while loading
+def load_tables() -> dict[str, pd.DataFrame]:  # returns all four tables keyed by name
     """Load the four CSV tables. Cached so the CSVs are read once per process.
     Admin edits clear this cache (``load_tables.clear()``) so changes show up."""
-    categories = pd.read_csv(DATA_DIR / "categories.csv")
-    suppliers = pd.read_csv(DATA_DIR / "suppliers.csv")
-    orders = pd.read_csv(DATA_DIR / "orders.csv")
-    ratings = pd.read_csv(DATA_DIR / "ratings.csv")
-    orders["order_date"] = pd.to_datetime(orders["order_date"], errors="coerce")
-    if "delivery_date" in orders.columns:
-        orders["delivery_date"] = pd.to_datetime(orders["delivery_date"], errors="coerce")
-        orders["delivery_days"] = (orders["delivery_date"] - orders["order_date"]).dt.days
-    else:
-        orders["delivery_date"] = pd.NaT
-        orders["delivery_days"] = pd.NA
+    categories = pd.read_csv(DATA_DIR / "categories.csv")  # read the category master data
+    suppliers = pd.read_csv(DATA_DIR / "suppliers.csv")  # read the supplier master data
+    orders = pd.read_csv(DATA_DIR / "orders.csv")  # read all orders
+    ratings = pd.read_csv(DATA_DIR / "ratings.csv")  # read the per-order ratings
+    orders["order_date"] = pd.to_datetime(orders["order_date"], errors="coerce")  # parse order dates; invalid ones become NaT
+    if "delivery_date" in orders.columns:  # delivery info is optional in the CSV
+        orders["delivery_date"] = pd.to_datetime(orders["delivery_date"], errors="coerce")  # parse delivery dates; invalid ones become NaT
+        orders["delivery_days"] = (orders["delivery_date"] - orders["order_date"]).dt.days  # lead time in whole days (delivery minus order)
+    else:  # no delivery_date column at all
+        orders["delivery_date"] = pd.NaT  # create the column as "missing date" everywhere
+        orders["delivery_days"] = pd.NA  # lead time unknown for every order
     # "Special circumstance" flag: an order where a high price is justified (e.g.
     # the only supplier able to deliver). Such orders are EXCLUDED from the price
     # score so they don't unfairly drag it down. Coerce to a real bool; default
     # to False when the column is absent or blank.
-    if "special_circumstance" in orders.columns:
+    if "special_circumstance" in orders.columns:  # column exists → normalise its mixed values
         orders["special_circumstance"] = (
-            orders["special_circumstance"]
+            orders["special_circumstance"]  # raw values may be bool, string or 0/1
             .map({True: True, False: False, "True": True, "False": False,
-                  "true": True, "false": False, 1: True, 0: False})
-            .fillna(False)
-            .astype(bool)
+                  "true": True, "false": False, 1: True, 0: False})  # translate every accepted spelling to a real bool
+            .fillna(False)  # anything unrecognised or blank counts as "no special circumstance"
+            .astype(bool)  # force a clean bool dtype for the whole column
         )
-    else:
-        orders["special_circumstance"] = False
-    return {
-        "categories": categories,
-        "suppliers": suppliers,
-        "orders": orders,
-        "ratings": ratings,
+    else:  # column missing entirely
+        orders["special_circumstance"] = False  # default: no order is special
+    return {  # hand back all tables in one dict
+        "categories": categories,  # category master data
+        "suppliers": suppliers,  # supplier master data
+        "orders": orders,  # orders incl. the derived date/flag columns
+        "ratings": ratings,  # per-order ratings
     }
 
 
